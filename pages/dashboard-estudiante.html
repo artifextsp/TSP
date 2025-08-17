@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Estudiante - TSP</title>
+    <style>
+        /* === VARIABLES CSS === */
+        :root {
+            /* Colores Primarios - Academic Excellence */
+            --primary-900: #1e40af;
+            --primary-800: #1e3a8a;
+            --primary-700: #1d4ed8;
+            --primary-600: #2563eb;
+            --primary-500: #3b82f6;
+            --primary-400: #60a5fa;
+            --primary-100: #dbeafe;
+            --primary-50: #eff6ff;
+            
+            /* Grises Profesionales */
+            --gray-900: #1e293b;
+            --gray-800: #334155;
+            --gray-600: #64748b;
+            --gray-400: #cbd5e1;
+            --gray-200: #f1f5f9;
+            --gray-100: #f8fafc;
+            --gray-50: #ffffff;
+            
+            /* Estados */
+            --success-500: #10b981;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+            --info-500: #0ea5e9;
+            
+            /* Tipografía */
+            --font-primary: 'Inter', system-ui, sans-serif;
+            --text-xs: 0.75rem;
+            --text-sm: 0.875rem;
+            --text-base: 1rem;
+            --text-lg: 1.125rem;
+            --text-xl: 1.25rem;
+            --text-2xl: 1.5rem;
+            --text-3xl: 1.875rem;
+            
+            /* Espaciado */
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-6: 1.5rem;
+            --space-8: 2rem;
+            
+            /* Bordes y Sombras */
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --radius-2xl: 20px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            
+            /* Transiciones */
+            --transition-fast: 150ms ease-in-out;
+            --transition-normal: 300ms ease-in-out;
+        }
+        
+        /* === RESET === */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: var(--font-primary);
+            font-size: var(--text-base);
+            color: var(--gray-800);
+            background-color: var(--gray-100);
+            line-height: 1.6;
+        }
+        
+        /* === DASHBOARD LAYOUT === */
+        .dashboard-container {
+            min-height: 100vh;
+            background-color: var(--gray-100);
+        }
+        
+        /* *** HEADER CORREGIDO *** */
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+            color: #ffffff; /* FORZAR COLOR BLANCO */
+            padding: var(--space-6) 0;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            z-index: 100;
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 var(--space-6);
+        }
+        
+        .header-left h1 {
+            font-size: var(--text-3xl);
+            font-weight: 700;
+            margin: 0;
+            color: #ffffff !important; /* FORZAR COLOR BLANCO */
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+        
+        .header-left p {
+            font-size: var(--text-lg);
+            margin: var(--space-2) 0 0 0;
+            color: #ffffff !important; /* FORZAR COLOR BLANCO */
+            opacity: 0.95;
+            font-weight: 400;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            font-size: var(--text-sm);
+            color: #ffffff !important; /* FORZAR COLOR BLANCO */
+        }
+        
+        #currentDate {
+            color: #ffffff !important; /* FORZAR COLOR BLANCO */
+            font-weight: 500;
+        }
+        
+        .logout-btn {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff !important; /* FORZAR COLOR BLANCO */
+            padding: var(--space-3) var(--space-6);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: var(--transition-fast);
+            font-size: var(--text-sm);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .logout-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-1px);
+        }
+        
+        .logout-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* === MAIN CONTENT === */
+        .dashboard-main {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: var(--space-8) var(--space-6);
+        }
+        
+        /* === USER INFO SECTION === */
+        .user-info {
+            background: linear-gradient(135deg, var(--gray-50) 0%, #ffffff 100%);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            margin-bottom: var(--space-8);
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .user-info::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-500), var(--primary-600), var(--success-500));
+        }
+        
+        .user-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-6);
+        }
+        
+        .user-info-item {
+            display: flex;
+            flex-direction: column;
+            text-align: center;
+            padding: var(--space-4);
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .user-info-label {
+            font-size: var(--text-sm);
+            font-weight: 500;
+            color: var(--gray-600);
+            margin-bottom: var(--space-2);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .user-info-value {
+            font-size: var(--text-xl);
+            font-weight: 600;
+            color: var(--gray-900);
+            line-height: 1.2;
+        }
+        
+        /* === SECTIONS === */
+        .section-title {
+            font-size: var(--text-2xl);
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: var(--space-6);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 32px;
+            background: linear-gradient(to bottom, var(--primary-500), var(--primary-600));
+            border-radius: 2px;
+        }
+        
+        /* === MODULES SECTION === */
+        .modules-section {
+            margin-bottom: var(--space-8);
+        }
+        
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--space-6);
+        }
+        
+        .module-card {
+            background: linear-gradient(135deg, var(--gray-50) 0%, #ffffff 100%);
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius-2xl);
+            padding: var(--space-8);
+            text-align: center;
+            transition: var(--transition-normal);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .module-card:hover {
+            border-color: var(--primary-400);
+            box-shadow: var(--shadow-xl);
+            transform: translateY(-6px);
+        }
+        
+        .module-card:hover .module-icon {
+            transform: scale(1.1);
+        }
+        
+        .module-card:active {
+            transform: translateY(-2px);
+        }
+        
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
+        }
+        
+        /* Diferentes colores para cada módulo */
+        .module-card:nth-child(1)::before {
+            background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
+        }
+        
+        .module-card:nth-child(2)::before {
+            background: linear-gradient(90deg, var(--success-500), #059669);
+        }
+        
+        .module-card:nth-child(3)::before {
+            background: linear-gradient(90deg, var(--warning-500), #d97706);
+        }
+        
+        .module-icon {
+            font-size: 3.5rem;
+            margin-bottom: var(--space-4);
+            display: block;
+            transition: var(--transition-normal);
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+        }
+        
+        .module-title {
+            font-size: var(--text-2xl);
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: var(--space-3);
+            line-height: 1.2;
+        }
+        
+        .module-description {
+            font-size: var(--text-base);
+            color: var(--gray-600);
+            margin-bottom: var(--space-6);
+            line-height: 1.6;
+            max-width: 280px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .module-status {
+            display: inline-block;
+            padding: var(--space-2) var(--space-4);
+            border-radius: 999px;
+            font-size: var(--text-sm);
+            font-weight: 500;
+            margin-bottom: var(--space-6);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .module-status.pending {
+            background-color: #fef3c7;
+            color: #d97706;
+            border: 1px solid #fbbf24;
+        }
+        
+        .module-status.completed {
+            background-color: #d1fae5;
+            color: #059669;
+            border: 1px solid #34d399;
+        }
+        
+        .module-status.in-progress {
+            background-color: #dbeafe;
+            color: var(--primary-600);
+            border: 1px solid var(--primary-400);
+        }
+        
+        .module-btn {
+            background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
+            color: var(--gray-50);
+            border: none;
+            padding: var(--space-3) var(--space-8);
+            border-radius: var(--radius-lg);
+            font-size: var(--text-sm);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        }
+        
+        .module-btn:hover {
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-400));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
+        }
+        
+        .module-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* === RESULTS SECTION === */
+        .results-section {
+            margin-bottom: var(--space-8);
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--space-6);
+        }
+        
+        .result-card {
+            background: linear-gradient(135deg, var(--gray-50) 0%, #ffffff 100%);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .result-card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+        
+        .result-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-400), var(--primary-500));
+        }
+        
+        .result-card h4 {
+            color: var(--primary-600);
+            margin-bottom: var(--space-4);
+            font-size: var(--text-lg);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .result-card h4::before {
+            content: '📊';
+            font-size: var(--text-base);
+        }
+        
+        .no-results {
+            color: var(--gray-500);
+            font-style: italic;
+            text-align: center;
+            padding: var(--space-6);
+            background: var(--gray-100);
+            border-radius: var(--radius-lg);
+            border: 2px dashed var(--gray-300);
+        }
+        
+        /* === CHARTS SECTION === */
+        .charts-section {
+            margin-bottom: var(--space-8);
+        }
+        
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: var(--space-6);
+            margin-bottom: var(--space-6);
+        }
+        
+        .chart-container, .chart-container-wide {
+            background: linear-gradient(135deg, var(--gray-50) 0%, #ffffff 100%);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chart-container:hover, .chart-container-wide:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+        
+        .chart-container::before, .chart-container-wide::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--info-500), var(--primary-500));
+        }
+        
+        .chart-container h3, .chart-container-wide h3 {
+            color: var(--gray-900);
+            margin-bottom: var(--space-4);
+            text-align: center;
+            font-size: var(--text-xl);
+            font-weight: 600;
+        }
+        
+        .chart-placeholder {
+            height: 250px;
+            background: linear-gradient(135deg, var(--gray-100), var(--gray-50));
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-600);
+            font-size: var(--text-base);
+            text-align: center;
+            border: 2px dashed var(--gray-300);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chart-placeholder::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        
+        .chart-container-wide .chart-placeholder {
+            height: 350px;
+        }
+        
+        /* === RESPONSIVE === */
+        @media (max-width: 767px) {
+            .header-content {
+                flex-direction: column;
+                gap: var(--space-4);
+                text-align: center;
+            }
+            
+            .header-left h1 {
+                font-size: var(--text-2xl);
+            }
+            
+            .header-left p {
+                font-size: var(--text-base);
+            }
+            
+            .dashboard-main {
+                padding: var(--space-4);
+            }
+            
+            .modules-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .user-info-grid {
+                grid-template-columns: 1fr;
+                gap: var(--space-4);
+            }
+            
+            .user-info-item {
+                padding: var(--space-3);
+            }
+            
+            .module-card {
+                padding: var(--space-6);
+            }
+            
+            .module-icon {
+                font-size: 2.5rem;
+            }
+            
+            .module-title {
+                font-size: var(--text-xl);
+            }
+            
+            .section-title {
+                font-size: var(--text-xl);
+            }
+        }
+        
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .modules-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .results-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .chart-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .user-info-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header CORREGIDO -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>TSP - Dashboard Estudiante</h1>
+                    <p id="welcomeMessage">Bienvenido/a</p>
+                </div>
+                <div class="header-right">
+                    <span id="currentDate"></span>
+                    <button onclick="logout()" class="logout-btn">Cerrar Sesión</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <!-- Información del estudiante -->
+            <section class="user-info">
+                <div class="user-info-grid">
+                    <div class="user-info-item">
+                        <span class="user-info-label">Código:</span>
+                        <span class="user-info-value" id="studentCode">E001002</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span class="user-info-label">Grado:</span>
+                        <span class="user-info-value" id="studentGrade">5°A</span>
+                    </div>
+                    <div class="user-info-item">
+                        <span class="user-info-label">Institución:</span>
+                        <span class="user-info-value" id="studentInstitution">Colegio San José</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Módulos de entrenamiento -->
+            <section class="modules-section">
+                <h2 class="section-title">Módulos de Entrenamiento</h2>
+                <div class="modules-grid">
+                    <div class="module-card" id="mlcModule" onclick="openModule('MLC')">
+                        <div class="module-icon">📚</div>
+                        <h3 class="module-title">Lectura Crítica</h3>
+                        <p class="module-description">Desarrolla comprensión lectora y velocidad</p>
+                        <div class="module-status pending" id="mlcStatus">Pendiente</div>
+                        <button class="module-btn">Iniciar</button>
+                    </div>
+
+                    <div class="module-card" id="mdmModule" onclick="openModule('MDM')">
+                        <div class="module-icon">🧠</div>
+                        <h3 class="module-title">Desafíos Mentales</h3>
+                        <p class="module-description">Estimula creatividad y pensamiento lógico</p>
+                        <div class="module-status pending" id="mdmStatus">Pendiente</div>
+                        <button class="module-btn">Iniciar</button>
+                    </div>
+
+                    <div class="module-card" id="medModule" onclick="openModule('MED')">
+                        <div class="module-icon">🎮</div>
+                        <h3 class="module-title">Ejercicios Digitales</h3>
+                        <p class="module-description">Fortalece inteligencias múltiples</p>
+                        <div class="module-status pending" id="medStatus">Pendiente</div>
+                        <button class="module-btn">Iniciar</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Resultados de la última sesión -->
+            <section class="results-section">
+                <h2 class="section-title">Resultados de la Última Sesión</h2>
+                <div class="results-grid">
+                    <div class="result-card">
+                        <h4>Lectura Crítica</h4>
+                        <div id="lastMlcResults" class="no-results">No hay resultados recientes</div>
+                    </div>
+                    <div class="result-card">
+                        <h4>Desafío Mental</h4>
+                        <div id="lastMdmResults" class="no-results">No hay resultados recientes</div>
+                    </div>
+                    <div class="result-card">
+                        <h4>Ejercicios Digitales</h4>
+                        <div id="lastMedResults" class="no-results">No hay resultados recientes</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Gráficos de progreso -->
+            <section class="charts-section">
+                <h2 class="section-title">Progreso Histórico</h2>
+                
+                <!-- Gráficos de Lectura Crítica -->
+                <div class="chart-row">
+                    <div class="chart-container">
+                        <h3>Velocidad de Lectura (WPM)</h3>
+                        <div class="chart-placeholder">
+                            📈<br>Gráfico de Velocidad<br>(Chart.js)
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Comprensión (%)</h3>
+                        <div class="chart-placeholder">
+                            📊<br>Gráfico de Comprensión<br>(Chart.js)
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Velocidad Efectiva</h3>
+                        <div class="chart-placeholder">
+                            ⚡<br>Gráfico de Velocidad Efectiva<br>(Chart.js)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Habilidades e Inteligencias Múltiples -->
+                <div class="chart-row">
+                    <div class="chart-container-wide">
+                        <h3>Habilidades e Inteligencias Múltiples</h3>
+                        <div class="chart-placeholder" style="height: 350px;">
+                            🎯<br>Gráfico Radar de 10 Habilidades<br>
+                            (MEMORIA, ATENCIÓN, COORDINACIÓN, etc.)<br>
+                            (Chart.js)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Desafíos de Creatividad -->
+                <div class="chart-row">
+                    <div class="chart-container">
+                        <h3>Desafíos de Creatividad (%)</h3>
+                        <div class="chart-placeholder">
+                            🎨<br>Progreso en Creatividad<br>(Chart.js)
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // === CONFIGURACIÓN SUPABASE ===
+        const SUPABASE_CONFIG = {
+            url: 'https://kryqjsncqsopjuwymhqd.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyeXFqc25jcXNvcGp1d3ltaHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjM3MDEsImV4cCI6MjA2ODg5OTcwMX0.w5HiaFiqlFJ_3QbcprUrufsOXTDWFg1zUMl2J7kWD6Y'
+        };
+
+        // === VARIABLES GLOBALES ===
+        let currentUser = null;
+        let currentAssignment = null;
+
+        // === INICIALIZACIÓN ===
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎓 Inicializando Dashboard del Estudiante...');
+            initDashboard();
+            updateDateTime();
+            // Actualizar fecha/hora cada minuto
+            setInterval(updateDateTime, 60000);
+        });
+
+        // === FUNCIONES PRINCIPALES ===
+        async function initDashboard() {
+            console.log('📊 Cargando dashboard...');
+            
+            // Obtener datos del usuario de sessionStorage (viene del login)
+            currentUser = getUserFromSession();
+            
+            if (!currentUser) {
+                console.warn('⚠️ No hay usuario en sesión');
+                // Datos de prueba para desarrollo
+                currentUser = {
+                    id: 'user123',
+                    codigo_estudiante: 'E001002',
+                    nombres: 'Juan Carlos',
+                    apellidos: 'Pérez González',
+                    grado: 5,
+                    seccion: 'A',
+                    institucion: 'Colegio San José'
+                };
+            }
+
+            // Cargar información del usuario
+            loadUserInfo();
+            
+            // Cargar estado de módulos (simulado por ahora)
+            await loadModuleStatus();
+            
+            // Cargar últimos resultados (simulado por ahora)
+            await loadLastResults();
+            
+            console.log('✅ Dashboard cargado correctamente');
+        }
+
+        function getUserFromSession() {
+            // Intentar obtener datos del usuario desde sessionStorage
+            const userData = sessionStorage.getItem('tsp_user');
+            if (userData) {
+                try {
+                    return JSON.parse(userData);
+                } catch (e) {
+                    console.error('Error parsing user data:', e);
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        function loadUserInfo() {
+            console.log('👤 Cargando información del usuario...');
+            
+            document.getElementById('welcomeMessage').textContent = 
+                `Bienvenido/a ${currentUser.nombres} ${currentUser.apellidos}`;
+            document.getElementById('studentCode').textContent = currentUser.codigo_estudiante;
+            document.getElementById('studentGrade').textContent = `${currentUser.grado}°${currentUser.seccion || 'A'}`;
+            document.getElementById('studentInstitution').textContent = currentUser.institucion || 'Colegio San José';
+        }
+
+        async function loadModuleStatus() {
+            console.log('📚 Cargando estado de módulos...');
+            // Simular verificación de estado de módulos
+            const modules = ['mlc', 'mdm', 'med'];
+            modules.forEach(module => {
+                const status = Math.random() > 0.5 ? 'pending' : 'completed';
+                const statusElement = document.getElementById(`${module}Status`);
+                const buttonElement = document.querySelector(`#${module}Module .module-btn`);
+                
+                if (status === 'completed') {
+                    statusElement.textContent = 'Completado';
+                    statusElement.className = 'module-status completed';
+                    buttonElement.textContent = 'Ver Resultados';
+                } else {
+                    statusElement.textContent = 'Pendiente';
+                    statusElement.className = 'module-status pending';
+                    buttonElement.textContent = 'Iniciar';
+                }
+            });
+        }
+
+        async function loadLastResults() {
+            console.log('📈 Cargando últimos resultados...');
+            // Simular resultados de la última sesión
+            
+            // Ejemplo de resultado MLC
+            if (Math.random() > 0.3) {
+                document.getElementById('lastMlcResults').innerHTML = `
+                    <div style="margin-bottom: 0.5rem;"><strong>El Principito - Cap. 1</strong></div>
+                    <div style="display: flex; gap: 1rem; font-size: 0.875rem; flex-wrap: wrap;">
+                        <span>WPM: 185.2</span>
+                        <span>Comprensión: 87.5%</span>
+                        <span>V. Efectiva: 162.1</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.5rem;">
+                        Hace 2 días
+                    </div>
+                `;
+            }
+
+            // Ejemplo de resultado MDM
+            if (Math.random() > 0.3) {
+                document.getElementById('lastMdmResults').innerHTML = `
+                    <div style="margin-bottom: 0.5rem;"><strong>Creatividad Visual</strong></div>
+                    <div style="font-size: 0.875rem;">
+                        <span>Porcentaje: 80%</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.5rem;">
+                        Hace 1 día
+                    </div>
+                `;
+            }
+
+            // Ejemplo de resultado MED
+            if (Math.random() > 0.3) {
+                document.getElementById('lastMedResults').innerHTML = `
+                    <div style="margin-bottom: 0.5rem;"><strong>Memoria Espacial</strong></div>
+                    <div style="display: flex; gap: 1rem; font-size: 0.875rem;">
+                        <span>Nivel: 7</span>
+                        <span>Puntos: 1,250</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.5rem;">
+                        Hace 3 horas
+                    </div>
+                `;
+            }
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('es-CO', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            const timeStr = now.toLocaleTimeString('es-CO', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            document.getElementById('currentDate').textContent = `${dateStr} - ${timeStr}`;
+        }
+
+        // === NAVEGACIÓN ===
+        function openModule(moduleType) {
+            console.log(`🎯 Abriendo módulo: ${moduleType}`);
+            
+            const urls = {
+                'MLC': 'mlc-module.html',
+                'MDM': 'mdm-module.html',
+                'MED': 'med-module.html'
+            };
+            
+            // Por ahora, mostrar alerta
+            alert(`Próximamente: Módulo ${moduleType}\nSe redirigirá a: ${urls[moduleType]}`);
+            
+            // En la implementación real:
+            // window.location.href = urls[moduleType];
+        }
+
+        // === FUNCIÓN LOGOUT CORREGIDA PARA dashboard-estudiante.html ===
+// Reemplazar la función logout() existente en tu dashboard-estudiante.html
+
+function logout() {
+    console.log('🚪 Iniciando proceso de logout...');
+    
+    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+        try {
+            // Limpiar todos los datos de sesión
+            sessionStorage.clear();
+            localStorage.clear();
+            
+            console.log('✅ Datos de sesión eliminados');
+            
+            // Mostrar mensaje de despedida
+            const logoutMessage = document.createElement('div');
+            logoutMessage.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: linear-gradient(135deg, #ef4444, #dc2626);
+                color: white;
+                padding: 1.5rem 2rem;
+                border-radius: 16px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                text-align: center;
+                z-index: 9999;
+                font-family: var(--font-primary);
+            `;
+            
+            logoutMessage.innerHTML = `
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">👋</div>
+                <p style="margin: 0; font-size: 1.1rem; font-weight: 500;">
+                    ¡Hasta pronto!
+                </p>
+            `;
+            
+            document.body.appendChild(logoutMessage);
+            
+            // Redirigir al login después de 1 segundo
+            setTimeout(() => {
+                console.log('🔄 Redirigiendo al login...');
+                window.location.href = '../index.html';
+            }, 1000);
+            
+        } catch (error) {
+            console.error('❌ Error durante logout:', error);
+            // Forzar redirección incluso si hay error
+            window.location.href = '../index.html';
+        }
+    } else {
+        console.log('❌ Logout cancelado por el usuario');
+    }
+}
+
+// === FUNCIÓN ALTERNATIVA SI LA DE ARRIBA NO FUNCIONA ===
+function logoutForce() {
+    console.log('🚪 Logout forzado...');
+    
+    // Limpiar sin confirmación
+    sessionStorage.clear();
+    localStorage.clear();
+    
+    // Redirigir inmediatamente
+    window.location.replace('../index.html');
+}
+
+        // === UTILIDADES ===
+        function formatDate(date) {
+            return new Date(date).toLocaleDateString('es-CO', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        console.log('🎓 TSP Dashboard Estudiante v2.0 cargado');
+        console.log('📊 Estado: Funcional con header corregido');
+        console.log('🔗 Listo para integración con login');
+    </script>
+</body>
+</html>
