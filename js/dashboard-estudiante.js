@@ -363,8 +363,11 @@ class EstudianteDashboard {
 // === FUNCIÓN OPENMODULE ACTUALIZADA ===
 // Reemplazar la función openModule existente en js/dashboard-estudiante.js
 
+// === FUNCIÓN OPENMODULE ACTUALIZADA PARA FASE 2 ===
+// Reemplazar en js/dashboard-estudiante.js
+
 function openModule(moduleType) {
-    console.log(`🎯 Abriendo módulo: ${moduleType}`);
+    console.log(`🎯 Abriendo módulo: ${moduleType} - FASE 2`);
     
     const urls = {
         'MLC': 'mlc-module.html',
@@ -375,19 +378,91 @@ function openModule(moduleType) {
     const url = urls[moduleType];
     
     if (url) {
-        // Guardar información del usuario en sessionStorage para el módulo
-        if (currentUser) {
-            sessionStorage.setItem('tsp_user', JSON.stringify(currentUser));
+        // Preparar datos del usuario para el módulo
+        const userData = estudianteDashboard ? estudianteDashboard.user : getUserFromSession();
+        
+        if (userData) {
+            // Guardar datos en sessionStorage para el módulo
+            sessionStorage.setItem('tsp_user', JSON.stringify(userData));
+            console.log('💾 Datos de usuario guardados para el módulo');
         }
         
         console.log(`🚀 Redirigiendo a: ${url}`);
         
-        // Redirigir al módulo correspondiente
-        window.location.href = url;
+        // Mostrar mensaje de carga para MLC FASE 2
+        if (moduleType === 'MLC') {
+            // Crear overlay de carga
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+                color: white;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 9999;
+                font-family: var(--font-primary);
+            `;
+            
+            loadingOverlay.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">📚</div>
+                    <h2 style="margin-bottom: 1rem; font-size: 1.5rem;">Módulo de Lectura Crítica</h2>
+                    <p style="margin-bottom: 2rem; opacity: 0.9;">FASE 2: Vocabulario + Test implementado</p>
+                    <div style="width: 200px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden;">
+                        <div style="width: 100%; height: 100%; background: white; border-radius: 2px; animation: loading 1s ease-in-out;"></div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes loading {
+                        0% { width: 0%; }
+                        100% { width: 100%; }
+                    }
+                </style>
+            `;
+            
+            document.body.appendChild(loadingOverlay);
+            
+            // Redirigir después de la animación
+            setTimeout(() => {
+                window.location.href = url;
+            }, 1200);
+        } else {
+            // Para otros módulos mostrar mensaje de desarrollo
+            alert(`📋 Módulo ${moduleType}\n\n🚧 En desarrollo\n\nPróximamente: ${url}\n\nPor ahora solo MLC FASE 2 está disponible.`);
+        }
+        
     } else {
         console.error('❌ Módulo no reconocido:', moduleType);
         alert('Módulo no disponible');
     }
+}
+
+// === FUNCIÓN AUXILIAR PARA OBTENER USUARIO ===
+function getUserFromSession() {
+    // Intentar obtener datos del usuario desde sessionStorage
+    const userData = sessionStorage.getItem('tsp_user') || sessionStorage.getItem('userProfile');
+    if (userData) {
+        try {
+            return JSON.parse(userData);
+        } catch (e) {
+            console.error('Error parsing user data:', e);
+        }
+    }
+    
+    // Fallback: datos de ejemplo
+    return {
+        id: 'user123',
+        codigo_estudiante: 'E001002',
+        nombres: 'Juan Carlos',
+        apellidos: 'Pérez González',
+        grado: 5
+    };
 }
 
 function logout() {

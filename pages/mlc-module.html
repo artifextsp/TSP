@@ -319,64 +319,170 @@
             background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
         }
         
-        /* === VOCABULARY CONTENT === */
-        .vocabulary-placeholder {
-            text-align: center;
-            padding: var(--space-12);
-            color: var(--gray-600);
-            background: linear-gradient(135deg, var(--gray-100), var(--gray-50));
-            border-radius: var(--radius-xl);
-            border: 2px dashed var(--gray-300);
+        /* === VOCABULARY STYLES === */
+        .vocabulary-container {
+            display: grid;
+            gap: var(--space-4);
+            margin: var(--space-6) 0;
         }
         
-        .vocabulary-placeholder .icon {
-            font-size: 4rem;
+        .vocabulary-item {
+            background-color: var(--gray-50);
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            display: flex;
+            gap: var(--space-4);
+            transition: var(--transition-fast);
+        }
+        
+        .vocabulary-item:hover {
+            border-color: var(--primary-300);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .term-number {
+            background-color: var(--primary-500);
+            color: var(--gray-50);
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        
+        .term-content h4 {
+            color: var(--primary-700);
+            font-size: var(--text-lg);
+            margin-bottom: var(--space-2);
+            font-weight: 600;
+        }
+        
+        .term-definition {
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+        
+        /* === TEST STYLES === */
+        .questions-container {
+            display: grid;
+            gap: var(--space-6);
+            margin: var(--space-6) 0;
+        }
+        
+        .question-item {
+            background-color: var(--gray-50);
+            border: 2px solid var(--gray-300);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            transition: var(--transition-fast);
+        }
+        
+        .question-item.answered {
+            border-color: var(--primary-300);
+            background-color: var(--primary-50);
+        }
+        
+        .question-header {
             margin-bottom: var(--space-4);
         }
         
-        /* === TEST CONTENT === */
-        .test-placeholder {
-            text-align: center;
-            padding: var(--space-12);
-            color: var(--gray-600);
-            background: linear-gradient(135deg, var(--info-50), var(--gray-50));
-            border-radius: var(--radius-xl);
-            border: 2px dashed var(--info-300);
-        }
-        
-        /* === READING CONTENT === */
-        .reading-placeholder {
-            text-align: center;
-            padding: var(--space-12);
-            color: var(--gray-600);
-            background: linear-gradient(135deg, var(--warning-50), var(--gray-50));
-            border-radius: var(--radius-xl);
-            border: 2px dashed var(--warning-300);
-            position: relative;
-        }
-        
-        .timer-display {
-            position: absolute;
-            top: var(--space-4);
-            right: var(--space-4);
-            background: var(--info-100);
-            color: var(--info-700);
-            padding: var(--space-3) var(--space-4);
-            border-radius: var(--radius-lg);
-            font-family: 'Courier New', monospace;
-            font-size: var(--text-lg);
+        .question-number {
+            background-color: var(--primary-500);
+            color: var(--gray-50);
+            padding: var(--space-2) var(--space-4);
+            border-radius: var(--radius-full);
+            font-size: var(--text-sm);
             font-weight: 600;
-            border: 1px solid var(--info-300);
         }
         
-        /* === COMPREHENSION CONTENT === */
-        .comprehension-placeholder {
-            text-align: center;
-            padding: var(--space-12);
-            color: var(--gray-600);
-            background: linear-gradient(135deg, var(--success-50), var(--gray-50));
+        .question-text {
+            font-size: var(--text-lg);
+            font-weight: 500;
+            color: var(--gray-900);
+            margin: var(--space-4) 0;
+            line-height: 1.6;
+        }
+        
+        .question-options {
+            display: grid;
+            gap: var(--space-3);
+        }
+        
+        .option-label {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: var(--space-4);
+            background-color: var(--gray-100);
+            border: 2px solid var(--gray-300);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+        
+        .option-label:hover {
+            background-color: var(--primary-50);
+            border-color: var(--primary-300);
+        }
+        
+        .option-label.selected {
+            background-color: var(--primary-100);
+            border-color: var(--primary-500);
+        }
+        
+        .option-label input[type="radio"] {
+            margin: 0;
+            accent-color: var(--primary-500);
+        }
+        
+        .option-text {
+            font-size: var(--text-base);
+            color: var(--gray-800);
+            flex: 1;
+        }
+        
+        /* === RESULTS STYLES === */
+        .test-results {
+            background: var(--gray-50);
+            border: 2px solid var(--primary-300);
             border-radius: var(--radius-xl);
-            border: 2px dashed var(--success-300);
+            padding: var(--space-6);
+            margin: var(--space-6) 0;
+            text-align: center;
+        }
+        
+        .test-results.success {
+            background: var(--success-100);
+            border-color: var(--success-500);
+        }
+        
+        .test-results.error {
+            background: var(--error-100);
+            border-color: var(--error-500);
+        }
+        
+        .result-score {
+            font-size: var(--text-4xl);
+            font-weight: 700;
+            margin-bottom: var(--space-4);
+        }
+        
+        .result-score.success { color: var(--success-600); }
+        .result-score.error { color: var(--error-600); }
+        
+        .result-message {
+            font-size: var(--text-lg);
+            font-weight: 500;
+            margin-bottom: var(--space-4);
+        }
+        
+        .result-details {
+            font-size: var(--text-base);
+            color: var(--gray-600);
         }
         
         /* === STEP ACTIONS === */
@@ -461,6 +567,27 @@
             border: 1px solid var(--success-300);
         }
         
+        /* === LOADING STATES === */
+        .loading-shimmer {
+            background: linear-gradient(90deg, var(--gray-200), var(--gray-100), var(--gray-200));
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: var(--radius-lg);
+            height: 60px;
+            margin-bottom: var(--space-4);
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .loading-container {
+            text-align: center;
+            padding: var(--space-8);
+            color: var(--gray-600);
+        }
+        
         /* === RESPONSIVE === */
         @media (max-width: 767px) {
             .header-content {
@@ -505,23 +632,11 @@
                 justify-content: center;
             }
             
-            .timer-display {
-                position: static;
-                display: inline-block;
-                margin-bottom: var(--space-4);
+            .vocabulary-item {
+                flex-direction: column;
+                text-align: center;
+                gap: var(--space-3);
             }
-        }
-        
-        /* === LOADING ANIMATION === */
-        .loading-shimmer {
-            background: linear-gradient(90deg, var(--gray-200), var(--gray-100), var(--gray-200));
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-        }
-        
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
         }
         
         /* === ACCESSIBILITY === */
@@ -534,7 +649,8 @@
         }
         
         .btn:focus,
-        .back-btn:focus {
+        .back-btn:focus,
+        .option-label:focus-within {
             outline: 2px solid var(--primary-500);
             outline-offset: 2px;
         }
@@ -554,7 +670,7 @@
                     </div>
                 </div>
                 <div class="header-right">
-                    <span id="studentName">Juan Carlos Pérez</span>
+                    <span id="studentName">Cargando...</span>
                 </div>
             </div>
         </header>
@@ -605,18 +721,19 @@
                 </div>
 
                 <div class="step-content">
-                    <div class="vocabulary-placeholder">
-                        <div class="icon">📖</div>
-                        <h3>10 Términos Clave</h3>
-                        <p>Aquí se mostrarán los términos del vocabulario<br>con sus definiciones.</p>
-                        <p style="font-size: 0.875rem; margin-top: 1rem; opacity: 0.8;">
-                            (Se implementará en FASE 2)
-                        </p>
+                    <div id="vocabularyContent" class="vocabulary-container">
+                        <!-- Loading estado inicial -->
+                        <div class="loading-container">
+                            <div class="loading-shimmer"></div>
+                            <div class="loading-shimmer"></div>
+                            <div class="loading-shimmer"></div>
+                            <p>Cargando vocabulario...</p>
+                        </div>
                     </div>
                 </div>
 
                 <div class="step-actions">
-                    <button class="btn btn-primary" onclick="goToStep(2)">
+                    <button id="continueToTestBtn" class="btn btn-primary" onclick="goToStep(2)" disabled>
                         Continuar al Test →
                     </button>
                 </div>
@@ -634,18 +751,17 @@
                     </h2>
                     <p class="step-description">
                         Responde las 10 preguntas sobre el vocabulario estudiado. 
-                        Necesitas obtener 10/10 para continuar a la lectura.
+                        Necesitas obtener <strong>10/10</strong> para continuar a la lectura.
                     </p>
                 </div>
 
                 <div class="step-content">
-                    <div class="test-placeholder">
-                        <div class="icon">📝</div>
-                        <h3>Test de 10 Preguntas</h3>
-                        <p>Aquí se mostrarán las preguntas del vocabulario<br>con opciones A, B, C, D aleatorizadas.</p>
-                        <p style="font-size: 0.875rem; margin-top: 1rem; opacity: 0.8;">
-                            (Se implementará en FASE 2)
-                        </p>
+                    <div id="vocabularyTestContent" class="questions-container">
+                        <!-- Se carga dinámicamente -->
+                    </div>
+                    
+                    <div id="testResults" class="test-results" style="display: none;">
+                        <!-- Resultados del test -->
                     </div>
                 </div>
 
@@ -653,7 +769,10 @@
                     <button class="btn btn-secondary" onclick="goToStep(1)">
                         ← Volver al Vocabulario
                     </button>
-                    <button class="btn btn-primary" onclick="goToStep(3)">
+                    <button id="submitTestBtn" class="btn btn-primary" onclick="submitVocabularyTest()" disabled>
+                        Registrar Respuestas
+                    </button>
+                    <button id="continueToReadingBtn" class="btn btn-primary" onclick="goToStep(3)" style="display: none;">
                         Continuar a Lectura →
                     </button>
                 </div>
@@ -676,9 +795,9 @@
                 </div>
 
                 <div class="step-content">
-                    <div class="reading-placeholder">
-                        <div class="timer-display" id="timerDisplay">00:00:00</div>
-                        <div class="icon">📖</div>
+                    <div style="text-align: center; padding: var(--space-12); color: var(--gray-600); background: linear-gradient(135deg, var(--warning-50), var(--gray-50)); border-radius: var(--radius-xl); border: 2px dashed var(--warning-300); position: relative;">
+                        <div style="position: absolute; top: var(--space-4); right: var(--space-4); background: var(--info-100); color: var(--info-700); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); font-family: 'Courier New', monospace; font-size: var(--text-lg); font-weight: 600; border: 1px solid var(--info-300);" id="timerDisplay">00:00:00</div>
+                        <div style="font-size: 4rem; margin-bottom: var(--space-4);">📖</div>
                         <h3>Área de Lectura</h3>
                         <p>Aquí se cargará el PDF de la lectura<br>con controles de zoom y pantalla completa.</p>
                         <p style="font-size: 0.875rem; margin-top: 1rem; opacity: 0.8;">
@@ -714,8 +833,8 @@
                 </div>
 
                 <div class="step-content">
-                    <div class="comprehension-placeholder">
-                        <div class="icon">🧠</div>
+                    <div style="text-align: center; padding: var(--space-12); color: var(--gray-600); background: linear-gradient(135deg, var(--success-50), var(--gray-50)); border-radius: var(--radius-xl); border: 2px dashed var(--success-300);">
+                        <div style="font-size: 4rem; margin-bottom: var(--space-4);">🧠</div>
                         <h3>Preguntas de Comprensión</h3>
                         <p>Aquí se mostrarán las preguntas sobre la lectura<br>con orientaciones y retroalimentación.</p>
                         <p style="font-size: 0.875rem; margin-top: 1rem; opacity: 0.8;">
