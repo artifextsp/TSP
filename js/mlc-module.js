@@ -1,7 +1,8 @@
-// === TSP v2.0 - MÓDULO MLC (LECTURA CRÍTICA) - FASE 2 COMPLETA ===
+// === TSP v2.0 - MÓDULO MLC (LECTURA CRÍTICA) - FASE 2 MEJORADA ===
 // Archivo: js/mlc-module.js
+// MEJORAS: 1) Corrección simple en el formulario, 2) Info de lectura desde vocabulario
 
-console.log('📚 Inicializando Módulo de Lectura Crítica TSP v2.0 - FASE 2...');
+console.log('📚 Inicializando Módulo de Lectura Crítica TSP v2.0 - FASE 2 MEJORADA...');
 
 // === CONFIGURACIÓN SUPABASE ===
 const SUPABASE_CONFIG = {
@@ -42,13 +43,13 @@ class MlcModule {
         this.vocabularyAnswers = {};
         this.shuffleSeed = null;
         
-        console.log('🎯 Módulo MLC inicializado - FASE 2');
+        console.log('🎯 Módulo MLC inicializado - FASE 2 MEJORADA');
     }
 
     // === INICIALIZACIÓN ===
     async init() {
         try {
-            console.log('🚀 Iniciando módulo MLC FASE 2...');
+            console.log('🚀 Iniciando módulo MLC FASE 2 MEJORADA...');
             
             // Cargar usuario de la sesión
             this.currentUser = this.getUserFromSession();
@@ -62,13 +63,16 @@ class MlcModule {
             // Actualizar información del usuario en la interfaz
             this.updateUserInfo();
             
-            // Cargar datos de la lectura asignada
-            await this.loadAssignedLecture();
+            // Cargar datos de la lectura asignada DESDE SUPABASE
+            await this.loadAssignedLectureFromSupabase();
+            
+            // ✅ MEJORA 2: Mostrar información de la lectura desde el vocabulario
+            this.displayLectureInfo();
             
             // Generar seed para aleatorización consistente
             this.generateShuffleSeed();
             
-            // Cargar vocabulario (FASE 2)
+            // Cargar vocabulario (FASE 2) - AHORA DESDE SUPABASE
             await this.loadVocabulary();
             
             // Inicializar el primer paso
@@ -77,7 +81,7 @@ class MlcModule {
             // Inicializar timer
             this.initTimer();
             
-            console.log('✅ Módulo MLC FASE 2 inicializado correctamente');
+            console.log('✅ Módulo MLC FASE 2 MEJORADA inicializado correctamente');
         } catch (error) {
             console.error('❌ Error inicializando módulo MLC:', error);
             this.showError('Error al cargar el módulo de lectura crítica');
@@ -114,6 +118,74 @@ class MlcModule {
         }
     }
 
+    // ✅ MEJORA 2: MOSTRAR INFORMACIÓN DE LA LECTURA DESDE EL VOCABULARIO
+    displayLectureInfo() {
+        console.log('📋 Mostrando información de la lectura...');
+        
+        if (!this.currentLecture) {
+            console.warn('⚠️ No hay lectura cargada para mostrar información');
+            return;
+        }
+
+        // Buscar el contenedor de información de la lectura (lo agregaremos al HTML)
+        let lectureInfoContainer = document.getElementById('lectureInfo');
+        
+        if (!lectureInfoContainer) {
+            // Crear el contenedor si no existe y agregarlo al inicio del vocabulario
+            const vocabularySection = document.getElementById('vocabularySection');
+            const stepHeader = vocabularySection.querySelector('.step-header');
+            
+            lectureInfoContainer = document.createElement('div');
+            lectureInfoContainer.id = 'lectureInfo';
+            lectureInfoContainer.className = 'lecture-info-card';
+            
+            // Insertar después del step-header
+            stepHeader.parentNode.insertBefore(lectureInfoContainer, stepHeader.nextSibling);
+        }
+
+        // ✅ CREAR HTML CON INFORMACIÓN COMPLETA DE LA LECTURA
+        lectureInfoContainer.innerHTML = `
+            <div class="lecture-info-content">
+                <div class="lecture-info-header">
+                    <span class="lecture-icon">📖</span>
+                    <h3>Información de la Lectura</h3>
+                </div>
+                <div class="lecture-info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Título:</span>
+                        <span class="info-value">${this.currentLecture.titulo || 'No disponible'}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Autor:</span>
+                        <span class="info-value">${this.currentLecture.autor || 'No disponible'}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Grado:</span>
+                        <span class="info-value">${this.formatGradeRange()}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Palabras:</span>
+                        <span class="info-value">${this.currentLecture.palabras || 0} palabras</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        console.log('✅ Información de la lectura mostrada exitosamente');
+    }
+
+    formatGradeRange() {
+        if (!this.currentLecture.grado_minimo && !this.currentLecture.grado_maximo) {
+            return 'No especificado';
+        }
+        
+        if (this.currentLecture.grado_minimo === this.currentLecture.grado_maximo) {
+            return `${this.currentLecture.grado_minimo}°`;
+        }
+        
+        return `${this.currentLecture.grado_minimo}° - ${this.currentLecture.grado_maximo}°`;
+    }
+
     // === SEED PARA ALEATORIZACIÓN CONSISTENTE ===
     generateShuffleSeed() {
         // Seed basado en estudiante_id + fecha del día para reproducibilidad pero no copia entre estudiantes
@@ -133,264 +205,292 @@ class MlcModule {
         return Math.abs(hash);
     }
 
-    // === CARGA DE DATOS ===
-    async loadAssignedLecture() {
-        console.log('📖 Cargando lectura asignada...');
+    // === CARGA DE DATOS DESDE SUPABASE ===
+    async loadAssignedLectureFromSupabase() {
+        console.log('📖 Cargando lectura asignada DESDE SUPABASE - ALGORITMO MEJORADO...');
         
         try {
-            if (supabase) {
-                // Intentar cargar desde Supabase
-                const { data, error } = await supabase
+            if (!supabase) {
+                throw new Error('Cliente Supabase no disponible');
+            }
+
+            // PASO 1: Intentar cargar lectura específica desde asignaciones
+            console.log('🎯 PASO 1: Buscando asignación específica...');
+            const { data: assignmentData, error: assignmentError } = await supabase
+                .from('asignaciones_ciclos')
+                .select(`
+                    *,
+                    ciclos (
+                        lectura_id,
+                        lecturas (
+                            id, titulo, autor, palabras, pdf_path,
+                            grado_minimo, grado_maximo, vocabulario, preguntas_tc, activo
+                        )
+                    )
+                `)
+                .eq('estudiante_id', this.currentUser.id)
+                .eq('activo', true)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (!assignmentError && assignmentData && assignmentData.length > 0 && assignmentData[0].ciclos?.lecturas) {
+                this.currentLecture = assignmentData[0].ciclos.lecturas;
+                console.log('✅ PASO 1 EXITOSO: Lectura específica asignada:', this.currentLecture.titulo);
+                await this.validateLectureData();
+                return;
+            }
+
+            // PASO 2: Obtener grado real del estudiante desde la BD
+            console.log('📊 PASO 2: Obteniendo grado real del estudiante...');
+            const studentGrade = await this.getStudentGradeFromDatabase();
+            console.log(`👨‍🎓 Grado del estudiante: ${studentGrade || 'NO DEFINIDO'}`);
+
+            if (studentGrade) {
+                // PASO 2A: Buscar lecturas apropiadas para el grado
+                console.log(`🔍 PASO 2A: Buscando lecturas para grado ${studentGrade}...`);
+                
+                const { data: gradeAppropriate, error: gradeError } = await supabase
                     .from('lecturas')
                     .select('*')
                     .eq('activo', true)
-                    .gte('grado_minimo', this.currentUser.grado - 1)
-                    .lte('grado_maximo', this.currentUser.grado + 1)
-                    .limit(1);
+                    .lte('grado_minimo', studentGrade)  // grado_minimo <= 5
+                    .gte('grado_maximo', studentGrade)  // grado_maximo >= 5
+                    .order('grado_minimo', { ascending: true })
+                    .order('created_at', { ascending: false });
 
-                if (error) throw error;
-
-                if (data && data.length > 0) {
-                    this.currentLecture = data[0];
-                    console.log('✅ Lectura cargada desde Supabase:', this.currentLecture.titulo);
+                if (!gradeError && gradeAppropriate && gradeAppropriate.length > 0) {
+                    const bestLecture = this.selectBestLectureForGrade(gradeAppropriate, studentGrade);
+                    this.currentLecture = bestLecture;
+                    console.log(`✅ PASO 2A EXITOSO: Lectura para grado ${studentGrade}:`, this.currentLecture.titulo);
+                    await this.validateLectureData();
                     return;
                 }
             }
-            
-            // Fallback: datos de ejemplo para FASE 2
-            this.currentLecture = {
-                id: 'lectura-ejemplo-fase2',
-                titulo: 'El Coyote y la Tortuga',
-                autor: 'Leyenda Hopi',
-                palabras: 107,
-                grado_minimo: 3,
-                grado_maximo: 5,
-                vocabulario: {
-                    items: [
-                        {
-                            indice: 1,
-                            termino: 'enojamos',
-                            definicion: 'Cuando alguien se siente molesto o furioso por algo.',
-                            pregunta: '¿Qué significa "enojamos" en el texto?',
-                            opciones: {
-                                A: 'Nos reímos mucho.',
-                                B: 'Nos sentimos felices.',
-                                C: 'Nos molestamos o sentimos rabia.',
-                                D: 'Nos cansamos de esperar.'
-                            },
-                            respuesta_correcta: 'C'
-                        },
-                        {
-                            indice: 2,
-                            termino: 'río',
-                            definicion: 'Corriente de agua que fluye hacia el mar.',
-                            pregunta: '¿Qué es un río según el texto?',
-                            opciones: {
-                                A: 'Una montaña muy alta',
-                                B: 'Corriente de agua que fluye hacia el mar',
-                                C: 'Un animal que nada',
-                                D: 'Una planta acuática'
-                            },
-                            respuesta_correcta: 'B'
-                        },
-                        {
-                            indice: 3,
-                            termino: 'tortuga',
-                            definicion: 'Animal con caparazón que se mueve lentamente.',
-                            pregunta: '¿Cómo es una tortuga?',
-                            opciones: {
-                                A: 'Animal con caparazón que se mueve lentamente',
-                                B: 'Animal que vuela muy rápido',
-                                C: 'Planta que crece en el agua',
-                                D: 'Piedra que rueda por el río'
-                            },
-                            respuesta_correcta: 'A'
-                        },
-                        {
-                            indice: 4,
-                            termino: 'coyote',
-                            definicion: 'Animal carnívoro parecido al lobo pero más pequeño.',
-                            pregunta: '¿Qué tipo de animal es el coyote?',
-                            opciones: {
-                                A: 'Un pez de río',
-                                B: 'Animal carnívoro parecido al lobo pero más pequeño',
-                                C: 'Un insecto volador',
-                                D: 'Una planta del desierto'
-                            },
-                            respuesta_correcta: 'B'
-                        },
-                        {
-                            indice: 5,
-                            termino: 'rápido',
-                            definicion: 'Que se mueve o actúa con mucha velocidad.',
-                            pregunta: '¿Qué significa ser rápido?',
-                            opciones: {
-                                A: 'Moverse muy lentamente',
-                                B: 'Estar siempre quieto',
-                                C: 'Que se mueve o actúa con mucha velocidad',
-                                D: 'Dormir mucho tiempo'
-                            },
-                            respuesta_correcta: 'C'
-                        },
-                        {
-                            indice: 6,
-                            termino: 'lento',
-                            definicion: 'Que se mueve o actúa sin prisa, despacio.',
-                            pregunta: '¿Cómo se mueve algo lento?',
-                            opciones: {
-                                A: 'Con mucha velocidad',
-                                B: 'Que se mueve o actúa sin prisa, despacio',
-                                C: 'Saltando muy alto',
-                                D: 'Gritando fuerte'
-                            },
-                            respuesta_correcta: 'B'
-                        },
-                        {
-                            indice: 7,
-                            termino: 'carrera',
-                            definicion: 'Competencia para ver quién llega primero.',
-                            pregunta: '¿Qué es una carrera?',
-                            opciones: {
-                                A: 'Una comida deliciosa',
-                                B: 'Competencia para ver quién llega primero',
-                                C: 'Un lugar para dormir',
-                                D: 'Una herramienta de trabajo'
-                            },
-                            respuesta_correcta: 'B'
-                        },
-                        {
-                            indice: 8,
-                            termino: 'ganar',
-                            definicion: 'Obtener la victoria en una competencia.',
-                            pregunta: '¿Qué significa ganar?',
-                            opciones: {
-                                A: 'Perder siempre',
-                                B: 'Estar triste',
-                                C: 'Obtener la victoria en una competencia',
-                                D: 'Correr hacia atrás'
-                            },
-                            respuesta_correcta: 'C'
-                        },
-                        {
-                            indice: 9,
-                            termino: 'orgulloso',
-                            definicion: 'Que siente mucha satisfacción por algo propio.',
-                            pregunta: '¿Cómo se siente alguien orgulloso?',
-                            opciones: {
-                                A: 'Muy triste y deprimido',
-                                B: 'Que siente mucha satisfacción por algo propio',
-                                C: 'Con mucho miedo',
-                                D: 'Muy confundido'
-                            },
-                            respuesta_correcta: 'B'
-                        },
-                        {
-                            indice: 10,
-                            termino: 'burlar',
-                            definicion: 'Reírse de alguien de manera cruel.',
-                            pregunta: '¿Qué significa burlar?',
-                            opciones: {
-                                A: 'Ayudar con cariño',
-                                B: 'Reírse de alguien de manera cruel',
-                                C: 'Dar un regalo bonito',
-                                D: 'Cantar una canción'
-                            },
-                            respuesta_correcta: 'B'
-                        }
-                    ]
-                },
-                preguntas_tc: {
-                    preguntas: [
-                        {
-                            indice: 1,
-                            pregunta: '¿Por qué el coyote arrojó a la tortuga al río?',
-                            opciones: {
-                                A: 'Porque quería verla nadar.',
-                                B: 'Porque la tortuga lo ayudó.',
-                                C: 'Porque estaba enojado con ella.',
-                                D: 'Porque tenía miedo del río.'
-                            },
-                            respuesta_correcta: 'C',
-                            orientacion: 'Busca en el texto cómo se sentía el coyote con la tortuga después de perder la carrera.',
-                            retroalimentacion: 'La opción correcta es C porque el texto dice que el coyote estaba muy enojado después de que la tortuga ganara la carrera.'
-                        }
-                    ]
-                }
-            };
-            
-            console.log('🧪 Usando lectura de ejemplo para FASE 2');
+
+            // PASO 3: Buscar lecturas generales (sin filtro de grado)
+            console.log('🔍 PASO 3: Buscando lecturas generales...');
+            const { data: generalLectures, error: generalError } = await supabase
+                .from('lecturas')
+                .select('*')
+                .eq('activo', true)
+                .order('grado_minimo', { ascending: true })
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (!generalError && generalLectures && generalLectures.length > 0) {
+                const defaultLecture = this.selectDefaultLecture(generalLectures, studentGrade);
+                this.currentLecture = defaultLecture;
+                console.log('✅ PASO 3 EXITOSO: Lectura por defecto:', this.currentLecture.titulo);
+                await this.validateLectureData();
+                return;
+            }
+
+            // Si llegamos aquí, no hay lecturas disponibles
+            throw new Error('No hay lecturas disponibles en la base de datos');
             
         } catch (error) {
-            console.error('❌ Error cargando lectura:', error);
-            this.showError('Error al cargar la lectura asignada');
+            console.error('❌ Error cargando lectura desde Supabase:', error);
+            throw new Error(`Error al cargar lectura: ${error.message}`);
         }
     }
 
-    // === FASE 2: VOCABULARIO ===
+    // === FUNCIÓN PARA OBTENER GRADO REAL DEL ESTUDIANTE ===
+    async getStudentGradeFromDatabase() {
+        try {
+            console.log('🔍 Consultando grado del estudiante en BD...');
+            
+            const { data: userData, error: userError } = await supabase
+                .from('usuarios')
+                .select(`
+                    *,
+                    grupos (grado, nombre)
+                `)
+                .eq('id', this.currentUser.id)
+                .single();
+
+            if (!userError && userData) {
+                if (userData.grupos && userData.grupos.grado) {
+                    console.log(`📊 Grado desde grupos: ${userData.grupos.grado}`);
+                    return userData.grupos.grado;
+                }
+                
+                if (userData.grado) {
+                    console.log(`📊 Grado directo en usuario: ${userData.grado}`);
+                    return userData.grado;
+                }
+            }
+
+            console.warn('⚠️ No se encontró grado en la BD, usando fallback');
+            return this.currentUser.grado || null;
+            
+        } catch (error) {
+            console.error('❌ Error obteniendo grado:', error);
+            return this.currentUser.grado || null;
+        }
+    }
+
+    // === FUNCIÓN PARA SELECCIONAR LA MEJOR LECTURA PARA EL GRADO ===
+    selectBestLectureForGrade(lectures, studentGrade) {
+        console.log(`🎯 Seleccionando mejor lectura de ${lectures.length} opciones para grado ${studentGrade}`);
+        
+        const exactMatch = lectures.filter(l => l.grado_minimo === studentGrade && l.grado_maximo === studentGrade);
+        const goodMatch = lectures.filter(l => l.grado_minimo <= studentGrade && l.grado_maximo >= studentGrade && !(l.grado_minimo === studentGrade && l.grado_maximo === studentGrade));
+        const acceptable = lectures.filter(l => l.grado_minimo <= studentGrade || l.grado_maximo >= studentGrade);
+        
+        console.log(`📊 Opciones encontradas:`);
+        console.log(`- Exactas (grado ${studentGrade}): ${exactMatch.length}`);
+        console.log(`- Compatibles: ${goodMatch.length}`);
+        console.log(`- Aceptables: ${acceptable.length}`);
+        
+        if (exactMatch.length > 0) {
+            console.log('✅ Usando lectura exacta para el grado');
+            return exactMatch[0];
+        }
+        
+        if (goodMatch.length > 0) {
+            console.log('✅ Usando lectura compatible');
+            return goodMatch[0];
+        }
+        
+        if (acceptable.length > 0) {
+            console.log('⚠️ Usando lectura aceptable (no ideal)');
+            return acceptable[0];
+        }
+        
+        console.log('⚠️ Fallback: primera lectura disponible');
+        return lectures[0];
+    }
+
+    // === FUNCIÓN PARA SELECCIONAR LECTURA POR DEFECTO ===
+    selectDefaultLecture(lectures, studentGrade) {
+        console.log(`🎯 Seleccionando lectura por defecto de ${lectures.length} opciones`);
+        
+        if (studentGrade) {
+            console.log(`📊 Buscando la más cercana al grado ${studentGrade}`);
+            
+            const withDistance = lectures.map(lecture => {
+                const avgGrade = (lecture.grado_minimo + lecture.grado_maximo) / 2;
+                const distance = Math.abs(avgGrade - studentGrade);
+                return { ...lecture, distance };
+            });
+            
+            withDistance.sort((a, b) => a.distance - b.distance);
+            console.log(`✅ Lectura más cercana: "${withDistance[0].titulo}" (distancia: ${withDistance[0].distance})`);
+            return withDistance[0];
+        }
+        
+        const basicGrade = lectures.find(l => l.grado_minimo <= 3);
+        if (basicGrade) {
+            console.log('✅ Usando lectura de grado básico');
+            return basicGrade;
+        }
+        
+        console.log('⚠️ Usando primera lectura disponible');
+        return lectures[0];
+    }
+
+    // === VALIDACIÓN DE DATOS DE LECTURA ===
+    async validateLectureData() {
+        console.log('🔍 Validando estructura de datos de la lectura...');
+        
+        if (!this.currentLecture) {
+            throw new Error('No hay lectura cargada');
+        }
+
+        const requiredFields = ['id', 'titulo', 'autor', 'palabras', 'vocabulario', 'preguntas_tc'];
+        for (const field of requiredFields) {
+            if (!this.currentLecture[field]) {
+                console.warn(`⚠️ Campo faltante o vacío: ${field}`);
+            }
+        }
+
+        if (!this.currentLecture.vocabulario || !this.currentLecture.vocabulario.items) {
+            throw new Error('Estructura de vocabulario inválida. Se esperaba vocabulario.items[]');
+        }
+
+        if (!Array.isArray(this.currentLecture.vocabulario.items)) {
+            throw new Error('vocabulario.items debe ser un array');
+        }
+
+        if (this.currentLecture.vocabulario.items.length === 0) {
+            throw new Error('No hay términos de vocabulario disponibles');
+        }
+
+        if (!this.currentLecture.preguntas_tc || !this.currentLecture.preguntas_tc.preguntas) {
+            throw new Error('Estructura de preguntas de comprensión inválida. Se esperaba preguntas_tc.preguntas[]');
+        }
+
+        if (!Array.isArray(this.currentLecture.preguntas_tc.preguntas)) {
+            throw new Error('preguntas_tc.preguntas debe ser un array');
+        }
+
+        if (this.currentLecture.preguntas_tc.preguntas.length === 0) {
+            throw new Error('No hay preguntas de comprensión disponibles');
+        }
+
+        console.log('✅ Estructura de datos validada:');
+        console.log(`- Título: ${this.currentLecture.titulo}`);
+        console.log(`- Autor: ${this.currentLecture.autor}`);
+        console.log(`- Palabras: ${this.currentLecture.palabras}`);
+        console.log(`- Términos de vocabulario: ${this.currentLecture.vocabulario.items.length}`);
+        console.log(`- Preguntas de comprensión: ${this.currentLecture.preguntas_tc.preguntas.length}`);
+    }
+
+    // === VOCABULARIO ===
     async loadVocabulary() {
-        console.log('📚 Cargando vocabulario FASE 2...');
+        console.log('📚 Cargando vocabulario DESDE SUPABASE...');
         
         try {
-            if (!this.currentLecture || !this.currentLecture.vocabulario) {
-                throw new Error('No hay vocabulario disponible');
+            if (!this.currentLecture || !this.currentLecture.vocabulario || !this.currentLecture.vocabulario.items) {
+                throw new Error('No hay vocabulario disponible en la lectura cargada');
             }
 
             this.vocabularyData = this.currentLecture.vocabulario.items;
             
-            // Mostrar vocabulario en la interfaz
+            console.log('📊 Vocabulario cargado desde Supabase:');
+            console.log(`- Total de términos: ${this.vocabularyData.length}`);
+            this.vocabularyData.forEach((item, index) => {
+                console.log(`  ${index + 1}. ${item.termino}: ${item.definicion?.substring(0, 50)}...`);
+            });
+            
             await this.renderVocabulary();
-            
-            // Preparar test de vocabulario
             this.prepareVocabularyTest();
-            
-            // Habilitar botón de continuar
             this.enableContinueToTest();
             
-            console.log('✅ Vocabulario cargado - 10 términos disponibles');
+            console.log('✅ Vocabulario cargado desde Supabase - Términos disponibles:', this.vocabularyData.length);
             
         } catch (error) {
-            console.error('❌ Error cargando vocabulario:', error);
-            this.showError('Error al cargar el vocabulario');
+            console.error('❌ Error cargando vocabulario desde Supabase:', error);
+            this.showError(`Error al cargar el vocabulario: ${error.message}`);
         }
     }
 
     async renderVocabulary() {
-    const container = document.getElementById('vocabularyContent');
-    
-    if (!this.vocabularyData || this.vocabularyData.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: var(--error-600);">No hay vocabulario disponible</p>';
-        return;
-    }
+        const container = document.getElementById('vocabularyContent');
+        
+        if (!this.vocabularyData || this.vocabularyData.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--error-600);">No hay vocabulario disponible</p>';
+            return;
+        }
 
-    // Crear HTML para cada término
-    const vocabularyHTML = this.vocabularyData.map(item => `
-        <div class="vocabulary-item">
-            <div class="term-number">${item.indice}</div>
-            <div class="term-content">
-                <h4>${item.termino}</h4>
-                <p class="term-definition">${item.definicion}</p>
+        const vocabularyHTML = this.vocabularyData.map(item => `
+            <div class="vocabulary-item">
+                <div class="term-number">${item.indice || (this.vocabularyData.indexOf(item) + 1)}</div>
+                <div class="term-content">
+                    <h4>${item.termino}</h4>
+                    <p class="term-definition">${item.definicion}</p>
+                </div>
             </div>
-        </div>
-    `).join('');
+        `).join('');
 
-    container.innerHTML = vocabularyHTML;
-    
-    // ✅ CORRECCIÓN: Marcar paso como completado con log claro
-    console.log('📚 Marcando vocabulario como completado...');
-    this.stepStates.vocabulary = 'completed';
-    this.stepStates.testVocabulary = 'pending';
-    
-    console.log('📊 Estados actuales:', this.stepStates);
-    console.log('✅ Vocabulario renderizado y marcado como completado');
-}
-
-logCurrentStates() {
-    console.log('🔍 ESTADO ACTUAL DE PASOS:');
-    console.log('- Vocabulario:', this.stepStates.vocabulary);
-    console.log('- Test Vocabulario:', this.stepStates.testVocabulary);
-    console.log('- Lectura:', this.stepStates.reading);
-    console.log('- Comprensión:', this.stepStates.comprehension);
-}
+        container.innerHTML = vocabularyHTML;
+        
+        console.log('📚 Marcando vocabulario como completado...');
+        this.stepStates.vocabulary = 'completed';
+        this.stepStates.testVocabulary = 'pending';
+        
+        console.log('✅ Vocabulario renderizado desde Supabase y marcado como completado');
+    }
 
     enableContinueToTest() {
         const btn = document.getElementById('continueToTestBtn');
@@ -403,40 +503,41 @@ logCurrentStates() {
         }
     }
 
-    // === FASE 2: TEST DE VOCABULARIO ===
+    // === TEST DE VOCABULARIO ===
     prepareVocabularyTest() {
-        console.log('📝 Preparando test de vocabulario...');
+        console.log('📝 Preparando test de vocabulario con datos de Supabase...');
         
-        // Crear datos del test con opciones aleatorizadas
         this.vocabularyTestData = this.vocabularyData.map(item => {
-            // Aleatorizar opciones usando el seed
-            const shuffledOptions = this.shuffleOptionsWithSeed(item.opciones, this.shuffleSeed + item.indice);
+            if (!item.pregunta || !item.opciones || !item.respuesta_correcta) {
+                console.warn('⚠️ Término sin pregunta completa:', item.termino);
+                return null;
+            }
+
+            const shuffledOptions = this.shuffleOptionsWithSeed(item.opciones, this.shuffleSeed + (item.indice || 0));
             
             return {
                 ...item,
                 shuffledOptions: shuffledOptions,
                 correctAnswerAfterShuffle: this.findCorrectAfterShuffle(item.opciones, item.respuesta_correcta, shuffledOptions)
             };
-        });
+        }).filter(item => item !== null);
         
-        console.log('✅ Test de vocabulario preparado con opciones aleatorizadas');
+        console.log('✅ Test de vocabulario preparado con datos de Supabase:');
+        console.log(`- Preguntas válidas: ${this.vocabularyTestData.length}`);
     }
 
     shuffleOptionsWithSeed(opciones, seed) {
-        // Convertir opciones a array para mezclar
         const letters = ['A', 'B', 'C', 'D'];
         const optionsArray = letters.map(letter => ({
             letter: letter,
             text: opciones[letter]
-        }));
+        })).filter(option => option.text);
         
-        // Shuffle usando seed
         for (let i = optionsArray.length - 1; i > 0; i--) {
             const j = Math.floor(this.seededRandom(seed + i) * (i + 1));
             [optionsArray[i], optionsArray[j]] = [optionsArray[j], optionsArray[i]];
         }
         
-        // Convertir de vuelta a objeto con nuevas letras
         const shuffled = {};
         optionsArray.forEach((option, index) => {
             shuffled[letters[index]] = option.text;
@@ -448,14 +549,13 @@ logCurrentStates() {
     findCorrectAfterShuffle(originalOptions, originalCorrect, shuffledOptions) {
         const correctText = originalOptions[originalCorrect];
         
-        // Encontrar en qué letra quedó después del shuffle
         for (const letter of ['A', 'B', 'C', 'D']) {
             if (shuffledOptions[letter] === correctText) {
                 return letter;
             }
         }
         
-        return 'A'; // Fallback
+        return 'A';
     }
 
     seededRandom(seed) {
@@ -464,20 +564,19 @@ logCurrentStates() {
     }
 
     loadVocabularyTest() {
-        console.log('📝 Cargando test de vocabulario...');
+        console.log('📝 Cargando test de vocabulario con datos de Supabase...');
         
         const container = document.getElementById('vocabularyTestContent');
         
-        if (!this.vocabularyTestData) {
-            container.innerHTML = '<p style="text-align: center; color: var(--error-600);">Error cargando el test</p>';
+        if (!this.vocabularyTestData || this.vocabularyTestData.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--error-600);">Error cargando el test desde Supabase</p>';
             return;
         }
 
-        // Crear HTML para cada pregunta
         const questionsHTML = this.vocabularyTestData.map(item => `
-            <div class="question-item" data-question-id="${item.indice}">
+            <div class="question-item" data-question-id="${item.indice || this.vocabularyTestData.indexOf(item) + 1}">
                 <div class="question-header">
-                    <span class="question-number">Pregunta ${item.indice}</span>
+                    <span class="question-number">Pregunta ${item.indice || this.vocabularyTestData.indexOf(item) + 1}</span>
                 </div>
                 <div class="question-text">
                     ${item.pregunta}
@@ -485,8 +584,8 @@ logCurrentStates() {
                 <div class="question-options">
                     ${Object.entries(item.shuffledOptions).map(([letter, text]) => `
                         <label class="option-label" data-letter="${letter}">
-                            <input type="radio" name="question_${item.indice}" value="${letter}" 
-                                   onchange="selectVocabularyAnswer(${item.indice}, '${letter}')">
+                            <input type="radio" name="question_${item.indice || this.vocabularyTestData.indexOf(item) + 1}" value="${letter}" 
+                                   onchange="selectVocabularyAnswer(${item.indice || this.vocabularyTestData.indexOf(item) + 1}, '${letter}')">
                             <span class="option-text">${letter}. ${text}</span>
                         </label>
                     `).join('')}
@@ -496,7 +595,7 @@ logCurrentStates() {
 
         container.innerHTML = questionsHTML;
         
-        console.log('✅ Test de vocabulario cargado con opciones aleatorizadas');
+        console.log('✅ Test de vocabulario cargado con datos de Supabase y opciones aleatorizadas');
     }
 
     selectVocabularyAnswer(questionId, answer) {
@@ -517,7 +616,6 @@ logCurrentStates() {
             label.classList.toggle('selected', option.checked);
         });
         
-        // Verificar si se pueden habilitar los botones
         this.checkTestProgress();
     }
 
@@ -527,7 +625,6 @@ logCurrentStates() {
         
         console.log(`📊 Progreso del test: ${answeredQuestions}/${totalQuestions}`);
         
-        // Habilitar botón de enviar si todas las preguntas están respondidas
         const submitBtn = document.getElementById('submitTestBtn');
         if (submitBtn) {
             submitBtn.disabled = answeredQuestions < totalQuestions;
@@ -539,20 +636,19 @@ logCurrentStates() {
         console.log('📝 Enviando test de vocabulario...');
         
         try {
-            // Calcular resultados
             const results = this.calculateVocabularyResults();
             
-            // Mostrar resultados
-            this.showVocabularyResults(results);
+            // ✅ MEJORA 1: Mostrar corrección simple directamente en el formulario
+            this.showSimpleCorrection(results);
             
             // Verificar si puede continuar al siguiente paso
-            if (results.score === 10) {
+            if (results.score === results.total) {
                 this.stepStates.testVocabulary = 'completed';
                 this.stepStates.reading = 'pending';
                 this.enableContinueToReading();
-                console.log('✅ Test aprobado 10/10 - Lectura desbloqueada');
+                console.log(`✅ Test aprobado ${results.score}/${results.total} - Lectura desbloqueada`);
             } else {
-                console.log(`❌ Test no aprobado ${results.score}/10 - Lectura sigue bloqueada`);
+                console.log(`❌ Test no aprobado ${results.score}/${results.total} - Lectura sigue bloqueada`);
                 this.showRetryOption();
             }
             
@@ -567,17 +663,19 @@ logCurrentStates() {
         const details = [];
         
         this.vocabularyTestData.forEach(item => {
-            const userAnswer = this.vocabularyAnswers[item.indice];
+            const questionId = item.indice || this.vocabularyTestData.indexOf(item) + 1;
+            const userAnswer = this.vocabularyAnswers[questionId];
             const isCorrect = userAnswer === item.correctAnswerAfterShuffle;
             
             if (isCorrect) correctAnswers++;
             
             details.push({
-                question: item.indice,
+                question: questionId,
                 userAnswer: userAnswer,
                 correctAnswer: item.correctAnswerAfterShuffle,
                 isCorrect: isCorrect,
-                term: item.termino
+                term: item.termino,
+                originalData: item
             });
         });
         
@@ -589,18 +687,82 @@ logCurrentStates() {
         };
     }
 
-    showVocabularyResults(results) {
+    // ✅ MEJORA 1: FUNCIÓN PARA CORRECCIÓN SIMPLE DIRECTAMENTE EN EL FORMULARIO
+    showSimpleCorrection(results) {
+        console.log('🎨 Aplicando corrección visual simple en el formulario...');
+
+        // Ocultar botón de enviar
+        const submitBtn = document.getElementById('submitTestBtn');
+        if (submitBtn) {
+            submitBtn.style.display = 'none';
+        }
+
+        // Aplicar colores a cada pregunta
+        results.details.forEach(detail => {
+            const questionItem = document.querySelector(`[data-question-id="${detail.question}"]`);
+            if (!questionItem) return;
+
+            // Obtener todas las opciones de esta pregunta
+            const options = questionItem.querySelectorAll('.option-label');
+            
+            options.forEach(optionLabel => {
+                const letter = optionLabel.dataset.letter;
+                const radio = optionLabel.querySelector('input[type="radio"]');
+                
+                // Si es la respuesta que eligió el usuario
+                if (letter === detail.userAnswer) {
+                    if (detail.isCorrect) {
+                        // ✅ Respuesta correcta -> verde
+                        optionLabel.style.backgroundColor = '#d1fae5';
+                        optionLabel.style.borderColor = '#10b981';
+                        optionLabel.style.color = '#065f46';
+                        optionLabel.innerHTML = optionLabel.innerHTML.replace(letter + '.', letter + '. ✅');
+                    } else {
+                        // ❌ Respuesta incorrecta -> rojo
+                        optionLabel.style.backgroundColor = '#fee2e2';
+                        optionLabel.style.borderColor = '#ef4444';
+                        optionLabel.style.color = '#991b1b';
+                        optionLabel.innerHTML = optionLabel.innerHTML.replace(letter + '.', letter + '. ❌');
+                    }
+                }
+                
+                // Si es la respuesta correcta (y no la eligió el usuario)
+                if (letter === detail.correctAnswer && letter !== detail.userAnswer) {
+                    // ✅ Mostrar la correcta en verde
+                    optionLabel.style.backgroundColor = '#d1fae5';
+                    optionLabel.style.borderColor = '#10b981';
+                    optionLabel.style.color = '#065f46';
+                    optionLabel.innerHTML = optionLabel.innerHTML.replace(letter + '.', letter + '. ✅ (Correcta)');
+                }
+                
+                // Deshabilitar todos los radio buttons
+                radio.disabled = true;
+            });
+
+            // Agregar clase para indicar que está corregida
+            questionItem.classList.add('corrected');
+            questionItem.classList.add(detail.isCorrect ? 'correct' : 'incorrect');
+        });
+
+        // Mostrar resumen general al final
+        this.showSummaryResults(results);
+
+        console.log('✅ Corrección visual simple aplicada exitosamente');
+    }
+
+    // ✅ FUNCIÓN PARA MOSTRAR RESUMEN GENERAL
+    showSummaryResults(results) {
         const resultsContainer = document.getElementById('testResults');
         
-        const isSuccess = results.score === 10;
+        const isSuccess = results.score === results.total;
         const resultClass = isSuccess ? 'success' : 'error';
         const resultMessage = isSuccess 
             ? '¡Perfecto! Has completado el vocabulario correctamente.' 
-            : `Necesitas 10/10 para continuar. Obtuviste ${results.score}/10.`;
+            : `Necesitas ${results.total}/${results.total} para continuar. Obtuviste ${results.score}/${results.total}.`;
         
         resultsContainer.innerHTML = `
             <div class="result-score ${resultClass}">
-                ${results.score}/10
+                ${results.score}/${results.total}
             </div>
             <div class="result-message">
                 ${resultMessage}
@@ -608,7 +770,7 @@ logCurrentStates() {
             <div class="result-details">
                 ${isSuccess 
                     ? 'Ahora puedes continuar a la lectura del texto.' 
-                    : 'Revisa los términos y vuelve a intentarlo.'
+                    : 'Revisa las respuestas marcadas arriba y vuelve a intentarlo.'
                 }
             </div>
         `;
@@ -616,11 +778,7 @@ logCurrentStates() {
         resultsContainer.style.display = 'block';
         resultsContainer.className = `test-results ${resultClass}`;
         
-        // Ocultar botón de enviar
-        const submitBtn = document.getElementById('submitTestBtn');
-        if (submitBtn) {
-            submitBtn.style.display = 'none';
-        }
+        console.log(`✅ Resumen de resultados mostrado: ${results.score}/${results.total}`);
     }
 
     enableContinueToReading() {
@@ -632,7 +790,6 @@ logCurrentStates() {
     }
 
     showRetryOption() {
-        // Agregar botón de reintentar
         const actions = document.querySelector('#testVocabularySection .step-actions');
         
         const retryBtn = document.createElement('button');
@@ -673,7 +830,6 @@ logCurrentStates() {
             continueBtn.style.display = 'none';
         }
         
-        // Remover botón de retry
         const retryBtn = document.querySelector('.btn-warning');
         if (retryBtn) {
             retryBtn.remove();
@@ -684,29 +840,24 @@ logCurrentStates() {
     goToStep(stepNumber) {
         console.log(`📍 Navegando al paso ${stepNumber}`);
         
-        // Validar rango de pasos
         if (stepNumber < 1 || stepNumber > 4) {
             console.error('❌ Número de paso inválido:', stepNumber);
             return;
         }
 
-        // Verificar guardas antes de permitir navegación
         if (!this.canAccessStep(stepNumber)) {
             console.warn(`🚫 Acceso denegado al paso ${stepNumber}`);
             this.showAccessDeniedMessage(stepNumber);
             return;
         }
 
-        // Actualizar paso actual
         this.currentStep = stepNumber;
         
-        // Ocultar todas las secciones
         const sections = document.querySelectorAll('.step-section');
         sections.forEach(section => {
             section.classList.remove('active');
         });
         
-        // Mostrar la sección correspondiente
         const sectionIds = [
             '',
             'vocabularySection',
@@ -720,42 +871,47 @@ logCurrentStates() {
             targetSection.classList.add('active');
         }
         
-        // Actualizar barra de progreso
         this.updateProgress();
-        
-        // Ejecutar acciones específicas del paso
         this.executeStepActions(stepNumber);
     }
 
     canAccessStep(stepNumber) {
-    console.log(`🔍 Verificando acceso al paso ${stepNumber}...`);
-    this.logCurrentStates();
-    
-    let canAccess = false;
-    
-    switch(stepNumber) {
-        case 1:
-            canAccess = true; // Siempre accesible
-            break;
-        case 2:
-            canAccess = this.stepStates.vocabulary === 'completed';
-            console.log(`📝 Paso 2 - Vocabulario completado? ${canAccess}`);
-            break;
-        case 3:
-            canAccess = this.stepStates.testVocabulary === 'completed';
-            console.log(`📖 Paso 3 - Test completado? ${canAccess}`);
-            break;
-        case 4:
-            canAccess = this.stepStates.reading === 'completed';
-            console.log(`🧠 Paso 4 - Lectura completada? ${canAccess}`);
-            break;
-        default:
-            canAccess = false;
+        console.log(`🔍 Verificando acceso al paso ${stepNumber}...`);
+        this.logCurrentStates();
+        
+        let canAccess = false;
+        
+        switch(stepNumber) {
+            case 1:
+                canAccess = true;
+                break;
+            case 2:
+                canAccess = this.stepStates.vocabulary === 'completed';
+                console.log(`📝 Paso 2 - Vocabulario completado? ${canAccess}`);
+                break;
+            case 3:
+                canAccess = this.stepStates.testVocabulary === 'completed';
+                console.log(`📖 Paso 3 - Test completado? ${canAccess}`);
+                break;
+            case 4:
+                canAccess = this.stepStates.reading === 'completed';
+                console.log(`🧠 Paso 4 - Lectura completada? ${canAccess}`);
+                break;
+            default:
+                canAccess = false;
+        }
+        
+        console.log(`${canAccess ? '✅' : '❌'} Acceso al paso ${stepNumber}: ${canAccess ? 'PERMITIDO' : 'DENEGADO'}`);
+        return canAccess;
     }
-    
-    console.log(`${canAccess ? '✅' : '❌'} Acceso al paso ${stepNumber}: ${canAccess ? 'PERMITIDO' : 'DENEGADO'}`);
-    return canAccess;
-}
+
+    logCurrentStates() {
+        console.log('🔍 ESTADO ACTUAL DE PASOS:');
+        console.log('- Vocabulario:', this.stepStates.vocabulary);
+        console.log('- Test Vocabulario:', this.stepStates.testVocabulary);
+        console.log('- Lectura:', this.stepStates.reading);
+        console.log('- Comprensión:', this.stepStates.comprehension);
+    }
 
     showAccessDeniedMessage(stepNumber) {
         const stepNames = ['', 'Vocabulario', 'Test de Vocabulario', 'Lectura', 'Comprensión'];
@@ -763,40 +919,38 @@ logCurrentStates() {
     }
 
     executeStepActions(stepNumber) {
-    switch(stepNumber) {
-        case 1:
-            console.log('📖 Activando estudio de vocabulario');
-            // ✅ CORRECCIÓN: No sobrescribir si ya está completado
-            if (this.stepStates.vocabulary !== 'completed') {
-                this.stepStates.vocabulary = 'active';
-            }
-            break;
-        case 2:
-            console.log('📝 Activando test de vocabulario');
-            // ✅ CORRECCIÓN: No sobrescribir si ya está completado
-            if (this.stepStates.testVocabulary !== 'completed') {
-                this.stepStates.testVocabulary = 'active';
-            }
-            this.loadVocabularyTest();
-            break;
-        case 3:
-            console.log('⏱️ Activando lectura con cronómetro');
-            if (this.stepStates.reading !== 'completed') {
-                this.stepStates.reading = 'active';
-            }
-            this.startTimer();
-            break;
-        case 4:
-            console.log('🧠 Activando test de comprensión');
-            if (this.stepStates.comprehension !== 'completed') {
-                this.stepStates.comprehension = 'active';
-            }
-            this.stopTimer();
-            break;
+        switch(stepNumber) {
+            case 1:
+                console.log('📖 Activando estudio de vocabulario');
+                if (this.stepStates.vocabulary !== 'completed') {
+                    this.stepStates.vocabulary = 'active';
+                }
+                break;
+            case 2:
+                console.log('📝 Activando test de vocabulario');
+                if (this.stepStates.testVocabulary !== 'completed') {
+                    this.stepStates.testVocabulary = 'active';
+                }
+                this.loadVocabularyTest();
+                break;
+            case 3:
+                console.log('⏱️ Activando lectura con cronómetro');
+                if (this.stepStates.reading !== 'completed') {
+                    this.stepStates.reading = 'active';
+                }
+                this.startTimer();
+                break;
+            case 4:
+                console.log('🧠 Activando test de comprensión');
+                if (this.stepStates.comprehension !== 'completed') {
+                    this.stepStates.comprehension = 'active';
+                }
+                this.stopTimer();
+                break;
+        }
+        
+        this.updateStepIndicators();
     }
-    
-    this.updateStepIndicators();
-}
 
     // === ACTUALIZACIÓN DE INTERFAZ ===
     updateProgress() {
@@ -877,9 +1031,8 @@ logCurrentStates() {
     finishMLC() {
         console.log('🎉 Finalizando módulo MLC...');
         
-        // Calcular métricas básicas
         const elapsedMs = this.endTime - this.startTime;
-        const words = this.currentLecture ? this.currentLecture.palabras : 107;
+        const words = this.currentLecture ? this.currentLecture.palabras : 0;
         const wpm = words > 0 ? (words * 60000) / elapsedMs : 0;
         
         console.log('📊 Métricas calculadas:');
@@ -887,10 +1040,8 @@ logCurrentStates() {
         console.log(`- Palabras: ${words}`);
         console.log(`- WPM: ${wpm.toFixed(1)}`);
         
-        // Mostrar mensaje de finalización
-        alert(`🎉 ¡Módulo MLC FASE 2 completado!\n\n📚 Vocabulario: ✅ Completado\n📝 Test: ✅ 10/10\n⏱️ Tiempo de lectura: ${this.formatTime(elapsedMs)}\n📈 Velocidad: ${wpm.toFixed(1)} WPM\n\n(FASE 3 y 4 próximamente)`);
+        alert(`🎉 ¡Módulo MLC FASE 2 MEJORADA completado!\n\n📚 Vocabulario: ✅ Completado (datos de Supabase)\n📝 Test: ✅ ${this.vocabularyTestData.length}/${this.vocabularyTestData.length}\n⏱️ Tiempo de lectura: ${this.formatTime(elapsedMs)}\n📈 Velocidad: ${wpm.toFixed(1)} WPM\n🗄️ Lectura: "${this.currentLecture.titulo}"\n\n(FASE 3 y 4 próximamente)`);
         
-        // Regresar al dashboard
         this.redirectToDashboard();
     }
 
@@ -921,11 +1072,8 @@ logCurrentStates() {
 }
 
 // === FUNCIONES GLOBALES ===
-
-// Instancia global del módulo
 let mlcModule = null;
 
-// Función para ir a un paso específico
 function goToStep(stepNumber) {
     if (mlcModule) {
         mlcModule.goToStep(stepNumber);
@@ -934,7 +1082,6 @@ function goToStep(stepNumber) {
     }
 }
 
-// Función para seleccionar respuesta de vocabulario
 function selectVocabularyAnswer(questionId, answer) {
     if (mlcModule) {
         mlcModule.selectVocabularyAnswer(questionId, answer);
@@ -943,7 +1090,6 @@ function selectVocabularyAnswer(questionId, answer) {
     }
 }
 
-// Función para enviar test de vocabulario
 function submitVocabularyTest() {
     if (mlcModule) {
         mlcModule.submitVocabularyTest();
@@ -952,7 +1098,6 @@ function submitVocabularyTest() {
     }
 }
 
-// Función para finalizar el módulo
 function finishMLC() {
     if (mlcModule) {
         mlcModule.finishMLC();
@@ -963,7 +1108,7 @@ function finishMLC() {
 
 // === INICIALIZACIÓN AUTOMÁTICA ===
 document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🎓 DOM cargado, inicializando módulo MLC FASE 2...');
+    console.log('🎓 DOM cargado, inicializando módulo MLC FASE 2 MEJORADA...');
     
     try {
         mlcModule = new MlcModule();
@@ -972,7 +1117,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.error('❌ Error fatal inicializando módulo MLC:', error);
         alert('Error al cargar el módulo. Por favor, intenta nuevamente.');
         
-        // Redirigir al dashboard en caso de error crítico
         setTimeout(() => {
             window.location.href = 'dashboard-estudiante.html';
         }, 2000);
@@ -984,7 +1128,7 @@ window.addEventListener('error', function(event) {
     console.error('❌ Error global capturado:', event.error);
 });
 
-console.log('📚 Módulo MLC FASE 2 cargado exitosamente');
+console.log('📚 Módulo MLC FASE 2 MEJORADA cargado exitosamente - DATOS DESDE SUPABASE + CORRECCIÓN SIMPLE + INFO LECTURA');
 
 // === EXPORTAR PARA DEBUGGING ===
 if (typeof window !== 'undefined') {
