@@ -360,21 +360,33 @@ class EstudianteDashboard {
 
 // === FUNCIONES GLOBALES ===
 
+// === FUNCIÓN OPENMODULE ACTUALIZADA ===
+// Reemplazar la función openModule existente en js/dashboard-estudiante.js
+
 function openModule(moduleType) {
+    console.log(`🎯 Abriendo módulo: ${moduleType}`);
+    
     const urls = {
         'MLC': 'mlc-module.html',
-        'MDM': 'mdm-module.html', 
+        'MDM': 'mdm-module.html',
         'MED': 'med-module.html'
     };
-
+    
     const url = urls[moduleType];
+    
     if (url) {
-        // En la implementación final, redirigir a la página del módulo
-        console.log(`🎯 Navegando a módulo ${moduleType}: ${url}`);
-        alert(`Próximamente: Módulo ${moduleType}\nSe redirigirá a: ${url}`);
-        // window.location.href = url;
+        // Guardar información del usuario en sessionStorage para el módulo
+        if (currentUser) {
+            sessionStorage.setItem('tsp_user', JSON.stringify(currentUser));
+        }
+        
+        console.log(`🚀 Redirigiendo a: ${url}`);
+        
+        // Redirigir al módulo correspondiente
+        window.location.href = url;
     } else {
-        console.error('Módulo no reconocido:', moduleType);
+        console.error('❌ Módulo no reconocido:', moduleType);
+        alert('Módulo no disponible');
     }
 }
 
