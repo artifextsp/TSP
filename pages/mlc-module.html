@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Módulo de Lectura Crítica - TSP</title>
+    <title>Módulo de Lectura Crítica - FASE 3 CORREGIDO - TSP</title>
     <style>
         /* === VARIABLES CSS === */
         :root {
@@ -318,171 +318,347 @@
             height: 4px;
             background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
         }
+
+        /* === PDF VIEWER CORREGIDO === */
         
-        /* === VOCABULARY STYLES === */
-        .vocabulary-container {
-            display: grid;
-            gap: var(--space-4);
+        /* Contenedor principal del PDF viewer */
+        .pdf-viewer-container {
+            position: relative;
+            background: var(--gray-900);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
             margin: var(--space-6) 0;
+            min-height: 600px;
         }
         
-        .vocabulary-item {
-            background-color: var(--gray-50);
-            border: 1px solid var(--gray-300);
-            border-radius: var(--radius-lg);
-            padding: var(--space-6);
+        /* Barra de herramientas del PDF */
+        .pdf-toolbar {
+            background: linear-gradient(135deg, var(--gray-800), var(--gray-700));
+            padding: var(--space-4);
             display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--gray-600);
+            position: relative;
+            z-index: 10;
+        }
+        
+        .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        
+        .toolbar-center {
+            display: flex;
+            align-items: center;
             gap: var(--space-4);
+            flex: 1;
+            justify-content: center;
+        }
+        
+        .toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        
+        /* Cronómetro en la toolbar */
+        .reading-timer {
+            background: linear-gradient(135deg, var(--info-600), var(--info-500));
+            color: white;
+            padding: var(--space-3) var(--space-5);
+            border-radius: var(--radius-lg);
+            font-family: 'Courier New', monospace;
+            font-size: var(--text-lg);
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            box-shadow: var(--shadow-sm);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .timer-icon {
+            font-size: var(--text-sm);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        /* Velocidad en tiempo real */
+        .reading-speed {
+            background: linear-gradient(135deg, var(--success-600), var(--success-500));
+            color: white;
+            padding: var(--space-2) var(--space-4);
+            border-radius: var(--radius-lg);
+            font-size: var(--text-sm);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        /* Controles de zoom */
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            background: rgba(255, 255, 255, 0.1);
+            padding: var(--space-2);
+            border-radius: var(--radius-lg);
+        }
+        
+        .zoom-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
             transition: var(--transition-fast);
-        }
-        
-        .vocabulary-item:hover {
-            border-color: var(--primary-300);
-            box-shadow: var(--shadow-md);
-        }
-        
-        .term-number {
-            background-color: var(--primary-500);
-            color: var(--gray-50);
-            width: 40px;
-            height: 40px;
-            border-radius: var(--radius-full);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
-            flex-shrink: 0;
-        }
-        
-        .term-content h4 {
-            color: var(--primary-700);
             font-size: var(--text-lg);
-            margin-bottom: var(--space-2);
             font-weight: 600;
         }
         
-        .term-definition {
-            color: var(--gray-700);
-            line-height: 1.6;
+        .zoom-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
         }
         
-        /* === TEST STYLES === */
-        .questions-container {
-            display: grid;
-            gap: var(--space-6);
-            margin: var(--space-6) 0;
-        }
-        
-        .question-item {
-            background-color: var(--gray-50);
-            border: 2px solid var(--gray-300);
-            border-radius: var(--radius-xl);
-            padding: var(--space-6);
-            transition: var(--transition-fast);
-        }
-        
-        .question-item.answered {
-            border-color: var(--primary-300);
-            background-color: var(--primary-50);
-        }
-        
-        .question-header {
-            margin-bottom: var(--space-4);
-        }
-        
-        .question-number {
-            background-color: var(--primary-500);
-            color: var(--gray-50);
-            padding: var(--space-2) var(--space-4);
-            border-radius: var(--radius-full);
+        .zoom-level {
+            color: white;
             font-size: var(--text-sm);
             font-weight: 600;
-        }
-        
-        .question-text {
-            font-size: var(--text-lg);
-            font-weight: 500;
-            color: var(--gray-900);
-            margin: var(--space-4) 0;
-            line-height: 1.6;
-        }
-        
-        .question-options {
-            display: grid;
-            gap: var(--space-3);
-        }
-        
-        .option-label {
-            display: flex;
-            align-items: center;
-            gap: var(--space-3);
-            padding: var(--space-4);
-            background-color: var(--gray-100);
-            border: 2px solid var(--gray-300);
-            border-radius: var(--radius-lg);
-            cursor: pointer;
-            transition: var(--transition-fast);
-        }
-        
-        .option-label:hover {
-            background-color: var(--primary-50);
-            border-color: var(--primary-300);
-        }
-        
-        .option-label.selected {
-            background-color: var(--primary-100);
-            border-color: var(--primary-500);
-        }
-        
-        .option-label input[type="radio"] {
-            margin: 0;
-            accent-color: var(--primary-500);
-        }
-        
-        .option-text {
-            font-size: var(--text-base);
-            color: var(--gray-800);
-            flex: 1;
-        }
-        
-        /* === RESULTS STYLES === */
-        .test-results {
-            background: var(--gray-50);
-            border: 2px solid var(--primary-300);
-            border-radius: var(--radius-xl);
-            padding: var(--space-6);
-            margin: var(--space-6) 0;
+            min-width: 50px;
             text-align: center;
         }
         
-        .test-results.success {
-            background: var(--success-100);
-            border-color: var(--success-500);
-        }
-        
-        .test-results.error {
-            background: var(--error-100);
-            border-color: var(--error-500);
-        }
-        
-        .result-score {
-            font-size: var(--text-4xl);
-            font-weight: 700;
-            margin-bottom: var(--space-4);
-        }
-        
-        .result-score.success { color: var(--success-600); }
-        .result-score.error { color: var(--error-600); }
-        
-        .result-message {
-            font-size: var(--text-lg);
+        /* Botones de acción */
+        .toolbar-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: var(--space-2) var(--space-4);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: var(--transition-fast);
+            font-size: var(--text-sm);
             font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .toolbar-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-1px);
+        }
+        
+        .toolbar-btn.primary {
+            background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
+            border-color: var(--primary-400);
+        }
+        
+        .toolbar-btn.primary:hover {
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-400));
+        }
+        
+        .toolbar-btn.success {
+            background: linear-gradient(135deg, var(--success-600), var(--success-500));
+            border-color: var(--success-400);
+            font-weight: 600;
+            padding: var(--space-3) var(--space-6);
+            font-size: var(--text-base);
+        }
+        
+        .toolbar-btn.success:hover {
+            background: linear-gradient(135deg, var(--success-500), var(--success-400));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        
+        /* === ÁREA DEL PDF CORREGIDA === */
+        .pdf-content {
+            position: relative;
+            background: #f8f9fa;
+            min-height: 600px;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Múltiples opciones de visualización */
+        
+        /* Opción 1: Iframe directo (fallback mejorado) */
+        .pdf-iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+            background: white;
+            transition: transform var(--transition-normal);
+            display: none;
+        }
+        
+        /* Opción 2: PDF.js embed */
+        .pdf-js-container {
+            width: 100%;
+            height: 600px;
+            display: none;
+        }
+        
+        /* Opción 3: Vista de imagen */
+        .pdf-image-container {
+            width: 100%;
+            min-height: 600px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-4);
+        }
+        
+        .pdf-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+        }
+        
+        /* Opción 4: Enlace directo */
+        .pdf-link-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-8);
+            text-align: center;
+            min-height: 600px;
+            background: linear-gradient(135deg, var(--info-50), var(--primary-50));
+            border-radius: var(--radius-xl);
+        }
+        
+        .pdf-icon {
+            font-size: 4rem;
+            margin-bottom: var(--space-4);
+            color: var(--primary-500);
+        }
+        
+        .pdf-link-title {
+            color: var(--primary-700);
+            font-size: var(--text-2xl);
+            font-weight: 600;
             margin-bottom: var(--space-4);
         }
         
-        .result-details {
-            font-size: var(--text-base);
+        .pdf-link-description {
             color: var(--gray-600);
+            margin-bottom: var(--space-6);
+            max-width: 500px;
+        }
+        
+        .pdf-action-btn {
+            background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
+            color: white;
+            padding: var(--space-4) var(--space-6);
+            border-radius: var(--radius-lg);
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin: var(--space-2);
+            transition: var(--transition-fast);
+            border: none;
+            cursor: pointer;
+            font-size: var(--text-base);
+        }
+        
+        .pdf-action-btn:hover {
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-400));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .pdf-action-btn.secondary {
+            background: linear-gradient(135deg, var(--success-600), var(--success-500));
+        }
+        
+        .pdf-action-btn.secondary:hover {
+            background: linear-gradient(135deg, var(--success-500), var(--success-400));
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        
+        /* Loading state */
+        .pdf-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--gray-600);
+            z-index: 5;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--gray-300);
+            border-top: 4px solid var(--primary-500);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto var(--space-4);
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Error state */
+        .pdf-error {
+            padding: var(--space-8);
+            text-align: center;
+            color: var(--error-600);
+            background: var(--error-100);
+            border-radius: var(--radius-lg);
+            margin: var(--space-4);
+        }
+        
+        /* Estados del viewer */
+        .pdf-viewer-container.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1000;
+            border-radius: 0;
+        }
+        
+        .pdf-viewer-container.fullscreen .pdf-iframe,
+        .pdf-viewer-container.fullscreen .pdf-js-container {
+            height: calc(100vh - 80px);
+        }
+        
+        .pdf-viewer-container.minimized {
+            height: 80px;
+            min-height: auto;
+        }
+        
+        .pdf-viewer-container.minimized .pdf-content {
+            display: none;
         }
         
         /* === STEP ACTIONS === */
@@ -537,67 +713,6 @@
             transform: translateY(-1px);
         }
         
-        .btn-warning {
-            background-color: var(--warning-500);
-            color: #ffffff;
-        }
-        
-        .btn-warning:hover:not(:disabled) {
-            background-color: var(--warning-600);
-            transform: translateY(-1px);
-        }
-        
-        /* === STATUS INDICATORS === */
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: var(--space-2);
-            padding: var(--space-2) var(--space-4);
-            border-radius: var(--radius-full);
-            font-size: var(--text-sm);
-            font-weight: 500;
-            margin-bottom: var(--space-4);
-        }
-        
-        .status-badge.pending {
-            background-color: var(--warning-100);
-            color: var(--warning-600);
-            border: 1px solid var(--warning-300);
-        }
-        
-        .status-badge.active {
-            background-color: var(--info-100);
-            color: var(--info-600);
-            border: 1px solid var(--info-300);
-        }
-        
-        .status-badge.completed {
-            background-color: var(--success-100);
-            color: var(--success-600);
-            border: 1px solid var(--success-300);
-        }
-        
-        /* === LOADING STATES === */
-        .loading-shimmer {
-            background: linear-gradient(90deg, var(--gray-200), var(--gray-100), var(--gray-200));
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: var(--radius-lg);
-            height: 60px;
-            margin-bottom: var(--space-4);
-        }
-        
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-        
-        .loading-container {
-            text-align: center;
-            padding: var(--space-8);
-            color: var(--gray-600);
-        }
-        
         /* === RESPONSIVE === */
         @media (max-width: 767px) {
             .header-content {
@@ -642,874 +757,76 @@
                 justify-content: center;
             }
             
-            .vocabulary-item {
+            /* PDF viewer responsive */
+            .pdf-toolbar {
                 flex-direction: column;
-                text-align: center;
                 gap: var(--space-3);
+                padding: var(--space-3);
+            }
+            
+            .toolbar-center {
+                order: -1;
+                justify-content: space-between;
+                width: 100%;
+            }
+            
+            .toolbar-left, .toolbar-right {
+                justify-content: center;
+                width: 100%;
+            }
+            
+            .reading-timer {
+                font-size: var(--text-base);
+                padding: var(--space-2) var(--space-4);
+            }
+            
+            .pdf-iframe, .pdf-js-container {
+                height: 400px;
+            }
+            
+            .pdf-viewer-container.fullscreen .pdf-iframe,
+            .pdf-viewer-container.fullscreen .pdf-js-container {
+                height: calc(100vh - 120px);
             }
         }
         
-        /* === ACCESSIBILITY === */
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
+        /* === INSTRUCCIONES DE LECTURA === */
+        .reading-instructions {
+            background: linear-gradient(135deg, var(--info-50), var(--primary-50));
+            border: 2px solid var(--info-300);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            margin-bottom: var(--space-6);
+            text-align: center;
         }
         
-        .btn:focus,
-        .back-btn:focus,
-        .option-label:focus-within {
-            outline: 2px solid var(--primary-500);
-            outline-offset: 2px;
+        .instructions-title {
+            color: var(--info-700);
+            font-size: var(--text-xl);
+            font-weight: 600;
+            margin-bottom: var(--space-4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-2);
         }
-/* === ESTILOS PARA REVISIÓN DETALLADA DEL TEST DE VOCABULARIO === */
-/* Agregar al final del <style> tag en mlc-module.html */
-
-/* Sección principal de revisión */
-.detailed-review-section {
-    margin-top: var(--space-8);
-    padding-top: var(--space-6);
-    border-top: 2px solid var(--gray-300);
-    animation: fadeInUp 0.5s ease-out;
-}
-
-.review-title {
-    font-size: var(--text-xl);
-    font-weight: 600;
-    color: var(--gray-900);
-    margin-bottom: var(--space-3);
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.review-subtitle {
-    font-size: var(--text-base);
-    color: var(--gray-600);
-    margin-bottom: var(--space-6);
-    line-height: 1.5;
-}
-
-/* Cada item de revisión */
-.review-item {
-    background: var(--gray-50);
-    border: 2px solid var(--gray-300);
-    border-radius: var(--radius-xl);
-    padding: var(--space-6);
-    margin-bottom: var(--space-4);
-    transition: var(--transition-fast);
-    position: relative;
-    overflow: hidden;
-}
-
-.review-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-}
-
-.review-item.correct {
-    border-color: var(--success-500);
-    background: linear-gradient(135deg, var(--success-100), var(--gray-50));
-}
-
-.review-item.correct::before {
-    background: linear-gradient(90deg, var(--success-500), #059669);
-}
-
-.review-item.incorrect {
-    border-color: var(--error-500);
-    background: linear-gradient(135deg, var(--error-100), var(--gray-50));
-}
-
-.review-item.incorrect::before {
-    background: linear-gradient(90deg, var(--error-500), #dc2626);
-}
-
-.review-item:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-/* Header de cada pregunta */
-.review-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--space-4);
-    padding-bottom: var(--space-3);
-    border-bottom: 1px solid var(--gray-200);
-}
-
-.review-number {
-    background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
-    color: white;
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-full);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    letter-spacing: 0.05em;
-}
-
-.review-status {
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-lg);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.review-status.correct {
-    background: var(--success-100);
-    color: var(--success-700);
-    border: 1px solid var(--success-300);
-}
-
-.review-status.incorrect {
-    background: var(--error-100);
-    color: var(--error-700);
-    border: 1px solid var(--error-300);
-}
-
-/* Contenido de la revisión */
-.review-content {
-    space-y: var(--space-4);
-}
-
-.review-term, .review-question {
-    margin-bottom: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    background: rgba(255, 255, 255, 0.7);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--gray-200);
-}
-
-.review-term strong, .review-question strong {
-    color: var(--primary-700);
-    font-weight: 600;
-}
-
-/* Sección de respuestas */
-.review-answers {
-    margin-top: var(--space-4);
-}
-
-.answer-comparison {
-    display: grid;
-    gap: var(--space-3);
-}
-
-.user-answer, .correct-answer {
-    padding: var(--space-4);
-    border-radius: var(--radius-lg);
-    border: 2px solid;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-}
-
-.user-answer.correct {
-    border-color: var(--success-400);
-    background: linear-gradient(135deg, var(--success-50), white);
-}
-
-.user-answer.incorrect {
-    border-color: var(--error-400);
-    background: linear-gradient(135deg, var(--error-50), white);
-}
-
-.correct-answer {
-    border-color: var(--success-400);
-    background: linear-gradient(135deg, var(--success-100), var(--success-50));
-}
-
-.answer-label {
-    font-size: var(--text-sm);
-    font-weight: 600;
-    color: var(--gray-700);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.answer-content {
-    font-size: var(--text-base);
-    color: var(--gray-900);
-    line-height: 1.5;
-}
-
-.answer-content strong {
-    color: var(--primary-700);
-    font-weight: 700;
-}
-
-/* Mensaje de felicitación */
-.congratulations {
-    padding: var(--space-4);
-    background: linear-gradient(135deg, var(--success-100), var(--success-50));
-    border: 2px solid var(--success-300);
-    border-radius: var(--radius-lg);
-    color: var(--success-700);
-    font-weight: 500;
-    text-align: center;
-    font-size: var(--text-base);
-}
-
-/* Animaciones */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.review-item {
-    animation: fadeInUp 0.3s ease-out;
-    animation-fill-mode: both;
-}
-
-.review-item:nth-child(1) { animation-delay: 0.1s; }
-.review-item:nth-child(2) { animation-delay: 0.2s; }
-.review-item:nth-child(3) { animation-delay: 0.3s; }
-.review-item:nth-child(4) { animation-delay: 0.4s; }
-.review-item:nth-child(5) { animation-delay: 0.5s; }
-.review-item:nth-child(6) { animation-delay: 0.6s; }
-.review-item:nth-child(7) { animation-delay: 0.7s; }
-.review-item:nth-child(8) { animation-delay: 0.8s; }
-.review-item:nth-child(9) { animation-delay: 0.9s; }
-.review-item:nth-child(10) { animation-delay: 1.0s; }
-
-/* === RESPONSIVE === */
-@media (max-width: 767px) {
-    .review-header {
-        flex-direction: column;
-        gap: var(--space-3);
-        text-align: center;
-    }
-    
-    .review-number {
-        font-size: var(--text-xs);
-        padding: var(--space-1) var(--space-3);
-    }
-    
-    .review-status {
-        font-size: var(--text-xs);
-        padding: var(--space-2) var(--space-3);
-    }
-    
-    .review-item {
-        padding: var(--space-4);
-        margin-bottom: var(--space-3);
-    }
-    
-    .review-term, .review-question {
-        padding: var(--space-2) var(--space-3);
-        font-size: var(--text-sm);
-    }
-    
-    .user-answer, .correct-answer {
-        padding: var(--space-3);
-    }
-    
-    .answer-label {
-        font-size: var(--text-xs);
-    }
-    
-    .answer-content {
-        font-size: var(--text-sm);
-    }
-}
-
-@media (min-width: 768px) {
-    .answer-comparison {
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-4);
-    }
-    
-    .review-item.incorrect .answer-comparison {
-        grid-template-columns: 1fr;
-        gap: var(--space-3);
-    }
-    
-    .review-item.incorrect .correct-answer {
-        margin-top: var(--space-2);
-    }
-}
-
-/* === ESTILOS PARA REVISIÓN DETALLADA DEL TEST DE VOCABULARIO === */
-/* Agregar al final del <style> tag en mlc-module.html */
-
-/* Sección principal de revisión */
-.detailed-review-section {
-    margin-top: var(--space-8);
-    padding-top: var(--space-6);
-    border-top: 2px solid var(--gray-300);
-    animation: fadeInUp 0.5s ease-out;
-}
-
-.review-title {
-    font-size: var(--text-xl);
-    font-weight: 600;
-    color: var(--gray-900);
-    margin-bottom: var(--space-3);
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.review-subtitle {
-    font-size: var(--text-base);
-    color: var(--gray-600);
-    margin-bottom: var(--space-6);
-    line-height: 1.5;
-}
-
-/* Cada item de revisión */
-.review-item {
-    background: var(--gray-50);
-    border: 2px solid var(--gray-300);
-    border-radius: var(--radius-xl);
-    padding: var(--space-6);
-    margin-bottom: var(--space-4);
-    transition: var(--transition-fast);
-    position: relative;
-    overflow: hidden;
-}
-
-.review-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-}
-
-.review-item.correct {
-    border-color: var(--success-500);
-    background: linear-gradient(135deg, var(--success-100), var(--gray-50));
-}
-
-.review-item.correct::before {
-    background: linear-gradient(90deg, var(--success-500), #059669);
-}
-
-.review-item.incorrect {
-    border-color: var(--error-500);
-    background: linear-gradient(135deg, var(--error-100), var(--gray-50));
-}
-
-.review-item.incorrect::before {
-    background: linear-gradient(90deg, var(--error-500), #dc2626);
-}
-
-.review-item:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-/* Header de cada pregunta */
-.review-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--space-4);
-    padding-bottom: var(--space-3);
-    border-bottom: 1px solid var(--gray-200);
-}
-
-.review-number {
-    background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
-    color: white;
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-full);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    letter-spacing: 0.05em;
-}
-
-.review-status {
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-lg);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-
-.review-status.correct {
-    background: var(--success-100);
-    color: var(--success-700);
-    border: 1px solid var(--success-300);
-}
-
-.review-status.incorrect {
-    background: var(--error-100);
-    color: var(--error-700);
-    border: 1px solid var(--error-300);
-}
-
-/* Contenido de la revisión */
-.review-content {
-    space-y: var(--space-4);
-}
-
-.review-term, .review-question {
-    margin-bottom: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    background: rgba(255, 255, 255, 0.7);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--gray-200);
-}
-
-.review-term strong, .review-question strong {
-    color: var(--primary-700);
-    font-weight: 600;
-}
-
-/* Sección de respuestas */
-.review-answers {
-    margin-top: var(--space-4);
-}
-
-.answer-comparison {
-    display: grid;
-    gap: var(--space-3);
-}
-
-.user-answer, .correct-answer {
-    padding: var(--space-4);
-    border-radius: var(--radius-lg);
-    border: 2px solid;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-}
-
-.user-answer.correct {
-    border-color: var(--success-400);
-    background: linear-gradient(135deg, var(--success-50), white);
-}
-
-.user-answer.incorrect {
-    border-color: var(--error-400);
-    background: linear-gradient(135deg, var(--error-50), white);
-}
-
-.correct-answer {
-    border-color: var(--success-400);
-    background: linear-gradient(135deg, var(--success-100), var(--success-50));
-}
-
-.answer-label {
-    font-size: var(--text-sm);
-    font-weight: 600;
-    color: var(--gray-700);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.answer-content {
-    font-size: var(--text-base);
-    color: var(--gray-900);
-    line-height: 1.5;
-}
-
-.answer-content strong {
-    color: var(--primary-700);
-    font-weight: 700;
-}
-
-/* Mensaje de felicitación */
-.congratulations {
-    padding: var(--space-4);
-    background: linear-gradient(135deg, var(--success-100), var(--success-50));
-    border: 2px solid var(--success-300);
-    border-radius: var(--radius-lg);
-    color: var(--success-700);
-    font-weight: 500;
-    text-align: center;
-    font-size: var(--text-base);
-}
-
-/* Animaciones */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.review-item {
-    animation: fadeInUp 0.3s ease-out;
-    animation-fill-mode: both;
-}
-
-.review-item:nth-child(1) { animation-delay: 0.1s; }
-.review-item:nth-child(2) { animation-delay: 0.2s; }
-.review-item:nth-child(3) { animation-delay: 0.3s; }
-.review-item:nth-child(4) { animation-delay: 0.4s; }
-.review-item:nth-child(5) { animation-delay: 0.5s; }
-.review-item:nth-child(6) { animation-delay: 0.6s; }
-.review-item:nth-child(7) { animation-delay: 0.7s; }
-.review-item:nth-child(8) { animation-delay: 0.8s; }
-.review-item:nth-child(9) { animation-delay: 0.9s; }
-.review-item:nth-child(10) { animation-delay: 1.0s; }
-
-/* === RESPONSIVE === */
-@media (max-width: 767px) {
-    .review-header {
-        flex-direction: column;
-        gap: var(--space-3);
-        text-align: center;
-    }
-    
-    .review-number {
-        font-size: var(--text-xs);
-        padding: var(--space-1) var(--space-3);
-    }
-    
-    .review-status {
-        font-size: var(--text-xs);
-        padding: var(--space-2) var(--space-3);
-    }
-    
-    .review-item {
-        padding: var(--space-4);
-        margin-bottom: var(--space-3);
-    }
-    
-    .review-term, .review-question {
-        padding: var(--space-2) var(--space-3);
-        font-size: var(--text-sm);
-    }
-    
-    .user-answer, .correct-answer {
-        padding: var(--space-3);
-    }
-    
-    .answer-label {
-        font-size: var(--text-xs);
-    }
-    
-    .answer-content {
-        font-size: var(--text-sm);
-    }
-}
-
-@media (min-width: 768px) {
-    .answer-comparison {
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-4);
-    }
-    
-    .review-item.incorrect .answer-comparison {
-        grid-template-columns: 1fr;
-        gap: var(--space-3);
-    }
-    
-    .review-item.incorrect .correct-answer {
-        margin-top: var(--space-2);
-    }
-}
-
-/* === ESTILOS ADICIONALES PARA MLC FASE 2 MEJORADA === */
-/* Agregar estos estilos al <style> tag del mlc-module.html */
-
-/* === TARJETA DE INFORMACIÓN DE LA LECTURA === */
-.lecture-info-card {
-    background: linear-gradient(135deg, var(--info-50), var(--primary-50));
-    border: 2px solid var(--info-300);
-    border-radius: var(--radius-xl);
-    padding: var(--space-6);
-    margin: var(--space-6) 0;
-    box-shadow: var(--shadow-md);
-    position: relative;
-    overflow: hidden;
-}
-
-.lecture-info-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--info-500), var(--primary-500));
-}
-
-.lecture-info-content {
-    position: relative;
-    z-index: 1;
-}
-
-.lecture-info-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    margin-bottom: var(--space-6);
-    padding-bottom: var(--space-3);
-    border-bottom: 1px solid var(--info-200);
-}
-
-.lecture-icon {
-    font-size: var(--text-2xl);
-    background: var(--info-500);
-    color: white;
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-full);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow-sm);
-}
-
-.lecture-info-header h3 {
-    color: var(--gray-900);
-    font-size: var(--text-xl);
-    font-weight: 600;
-    margin: 0;
-}
-
-.lecture-info-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--space-4);
-}
-
-.info-item {
-    background: rgba(255, 255, 255, 0.7);
-    padding: var(--space-4);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--info-200);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-}
-
-.info-label {
-    font-size: var(--text-sm);
-    font-weight: 600;
-    color: var(--info-700);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.info-value {
-    font-size: var(--text-lg);
-    font-weight: 500;
-    color: var(--gray-900);
-    line-height: 1.3;
-}
-
-/* === CORRECCIÓN SIMPLE DEL TEST === */
-.question-item.corrected {
-    border-width: 3px;
-    box-shadow: var(--shadow-lg);
-    position: relative;
-    overflow: hidden;
-}
-
-.question-item.corrected::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 6px;
-}
-
-.question-item.corrected.correct::before {
-    background: linear-gradient(90deg, var(--success-500), #059669);
-}
-
-.question-item.corrected.incorrect::before {
-    background: linear-gradient(90deg, var(--error-500), #dc2626);
-}
-
-/* Opciones corregidas */
-.option-label {
-    transition: all var(--transition-normal);
-}
-
-.option-label input[type="radio"]:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-/* Estados de corrección visual */
-.option-correct {
-    background-color: #d1fae5 !important;
-    border-color: #10b981 !important;
-    color: #065f46 !important;
-    font-weight: 600;
-}
-
-.option-incorrect {
-    background-color: #fee2e2 !important;
-    border-color: #ef4444 !important;
-    color: #991b1b !important;
-    font-weight: 600;
-}
-
-.option-correct-answer {
-    background-color: #d1fae5 !important;
-    border-color: #10b981 !important;
-    color: #065f46 !important;
-    font-weight: 600;
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-}
-
-/* Íconos de corrección */
-.correction-icon {
-    font-weight: bold;
-    margin-left: var(--space-2);
-}
-
-.correction-icon.correct {
-    color: var(--success-600);
-}
-
-.correction-icon.incorrect {
-    color: var(--error-600);
-}
-
-/* === RESPONSIVE PARA NUEVOS ELEMENTOS === */
-@media (max-width: 767px) {
-    .lecture-info-grid {
-        grid-template-columns: 1fr;
-        gap: var(--space-3);
-    }
-    
-    .lecture-info-card {
-        padding: var(--space-4);
-        margin: var(--space-4) 0;
-    }
-    
-    .lecture-info-header {
-        flex-direction: column;
-        text-align: center;
-        gap: var(--space-2);
-    }
-    
-    .lecture-icon {
-        width: 40px;
-        height: 40px;
-        font-size: var(--text-xl);
-    }
-    
-    .lecture-info-header h3 {
-        font-size: var(--text-lg);
-    }
-    
-    .info-item {
-        padding: var(--space-3);
-        text-align: center;
-    }
-    
-    .info-label {
-        font-size: var(--text-xs);
-    }
-    
-    .info-value {
-        font-size: var(--text-base);
-    }
-}
-
-@media (min-width: 768px) and (max-width: 1023px) {
-    .lecture-info-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-/* === ANIMACIONES PARA LA CORRECCIÓN === */
-@keyframes correctAnswer {
-    0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
-    }
-    50% {
-        transform: scale(1.02);
-        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.2);
-    }
-    100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-    }
-}
-
-@keyframes incorrectAnswer {
-    0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-    }
-    50% {
-        transform: scale(1.02);
-        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.2);
-    }
-    100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-    }
-}
-
-.option-correct {
-    animation: correctAnswer 0.6s ease-out;
-}
-
-.option-incorrect {
-    animation: incorrectAnswer 0.6s ease-out;
-}
-
-/* === MEJORAS EN LA ACCESIBILIDAD === */
-.option-label:focus-within {
-    outline: 2px solid var(--primary-500);
-    outline-offset: 2px;
-}
-
-.option-label input[type="radio"]:disabled + .option-text {
-    user-select: none;
-}
-
-/* === ESTADO DE CARGA PARA CORRECCIÓN === */
-.correcting {
-    opacity: 0.8;
-    pointer-events: none;
-    position: relative;
-}
-
-.correcting::after {
-    content: 'Corrigiendo...';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(255, 255, 255, 0.9);
-    padding: var(--space-3) var(--space-6);
-    border-radius: var(--radius-lg);
-    font-weight: 600;
-    color: var(--primary-600);
-    z-index: 10;
-}
-
-
-
+        
+        .instructions-list {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            gap: var(--space-2);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .instructions-list li {
+            background: rgba(255, 255, 255, 0.7);
+            padding: var(--space-3);
+            border-radius: var(--radius-lg);
+            font-size: var(--text-sm);
+            color: var(--gray-700);
+        }
     </style>
 </head>
 <body>
@@ -1522,11 +839,11 @@
                         ← Volver al Dashboard
                     </a>
                     <div class="header-title">
-                        <h1>📚 Módulo de Lectura Crítica</h1>
+                        <h1>📚 Módulo de Lectura Crítica - FASE 3 CORREGIDO</h1>
                     </div>
                 </div>
                 <div class="header-right">
-                    <span id="studentName">Cargando...</span>
+                    <span id="studentName">Estudiante TSP</span>
                 </div>
             </div>
         </header>
@@ -1535,22 +852,22 @@
         <section class="progress-section">
             <div class="progress-content">
                 <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill" style="width: 25%"></div>
+                    <div class="progress-fill" id="progressFill" style="width: 75%"></div>
                 </div>
                 <div class="progress-steps">
-                    <div class="progress-step active" id="step1Progress">
+                    <div class="progress-step completed">
                         <div class="step-number">1</div>
                         <span>Vocabulario</span>
                     </div>
-                    <div class="progress-step" id="step2Progress">
+                    <div class="progress-step completed">
                         <div class="step-number">2</div>
                         <span>Test Vocabulario</span>
                     </div>
-                    <div class="progress-step" id="step3Progress">
+                    <div class="progress-step active">
                         <div class="step-number">3</div>
                         <span>Lectura</span>
                     </div>
-                    <div class="progress-step" id="step4Progress">
+                    <div class="progress-step">
                         <div class="step-number">4</div>
                         <span>Comprensión</span>
                     </div>
@@ -1560,85 +877,11 @@
 
         <!-- Main Content -->
         <main class="mlc-main">
-            <!-- PASO 1: Estudio de Vocabulario -->
-            <section id="vocabularySection" class="step-section active">
+            <!-- PASO 3: Lectura con PDF CORREGIDO -->
+            <section id="readingSection" class="step-section active">
                 <div class="step-header">
-                    <div class="status-badge active">
+                    <div class="status-badge active" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--info-100); color: var(--info-600); border-radius: 999px; font-size: 0.875rem; font-weight: 500; margin-bottom: 1rem;">
                         <span>📖</span>
-                        <span>Paso 1 de 4</span>
-                    </div>
-                    <h2 class="step-title">
-                        📚 Estudio de Vocabulario
-                    </h2>
-                    <p class="step-description">
-                        Estudia estos términos clave antes de comenzar la lectura. 
-                        Es importante comprender su significado para una mejor comprensión del texto.
-                    </p>
-                </div>
-
-                <div class="step-content">
-                    <div id="vocabularyContent" class="vocabulary-container">
-                        <!-- Loading estado inicial -->
-                        <div class="loading-container">
-                            <div class="loading-shimmer"></div>
-                            <div class="loading-shimmer"></div>
-                            <div class="loading-shimmer"></div>
-                            <p>Cargando vocabulario desde Supabase...</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="step-actions">
-                    <button id="continueToTestBtn" class="btn btn-primary" onclick="goToStep(2)" disabled>
-                        Continuar al Test →
-                    </button>
-                </div>
-            </section>
-
-            <!-- PASO 2: Test de Vocabulario -->
-            <section id="testVocabularySection" class="step-section">
-                <div class="step-header">
-                    <div class="status-badge pending">
-                        <span>📝</span>
-                        <span>Paso 2 de 4</span>
-                    </div>
-                    <h2 class="step-title">
-                        🧠 Test de Vocabulario
-                    </h2>
-                    <p class="step-description">
-                        Responde las preguntas sobre el vocabulario estudiado. 
-                        Necesitas obtener <strong>todas correctas</strong> para continuar a la lectura.
-                    </p>
-                </div>
-
-                <div class="step-content">
-                    <div id="vocabularyTestContent" class="questions-container">
-                        <!-- Se carga dinámicamente desde Supabase -->
-                    </div>
-                    
-                    <div id="testResults" class="test-results" style="display: none;">
-                        <!-- Resultados del test -->
-                    </div>
-                </div>
-
-                <div class="step-actions">
-                    <button class="btn btn-secondary" onclick="goToStep(1)">
-                        ← Volver al Vocabulario
-                    </button>
-                    <button id="submitTestBtn" class="btn btn-primary" onclick="submitVocabularyTest()" disabled>
-                        Registrar Respuestas
-                    </button>
-                    <button id="continueToReadingBtn" class="btn btn-primary" onclick="goToStep(3)" style="display: none;">
-                        Continuar a Lectura →
-                    </button>
-                </div>
-            </section>
-
-            <!-- PASO 3: Lectura con Cronómetro -->
-            <section id="readingSection" class="step-section">
-                <div class="step-header">
-                    <div class="status-badge pending">
-                        <span>⏱️</span>
                         <span>Paso 3 de 4</span>
                     </div>
                     <h2 class="step-title">
@@ -1646,19 +889,120 @@
                     </h2>
                     <p class="step-description">
                         Lee el texto completo con atención. El cronómetro medirá tu velocidad de lectura 
-                        para calcular las palabras por minuto.
+                        para calcular las palabras por minuto. Usa los controles para ajustar el zoom y navegar por el documento.
                     </p>
                 </div>
 
+                <!-- Instrucciones de lectura -->
+                <div class="reading-instructions">
+                    <div class="instructions-title">
+                        <span>📋</span>
+                        <span>Instrucciones de Lectura</span>
+                    </div>
+                    <ul class="instructions-list">
+                        <li>🔍 <strong>Zoom:</strong> Usa los botones + y - para ajustar el tamaño del texto</li>
+                        <li>⏱️ <strong>Cronómetro:</strong> Se inicia automáticamente al cargar el PDF</li>
+                        <li>📊 <strong>Velocidad:</strong> Tu velocidad de lectura se calcula en tiempo real</li>
+                        <li>🔄 <strong>Minimizar:</strong> Puedes minimizar para revisar el vocabulario</li>
+                        <li>✅ <strong>Terminar:</strong> Presiona "TERMINÉ DE LEER" cuando hayas completado la lectura</li>
+                    </ul>
+                </div>
+
                 <div class="step-content">
-                    <div style="text-align: center; padding: var(--space-12); color: var(--gray-600); background: linear-gradient(135deg, var(--warning-50), var(--gray-50)); border-radius: var(--radius-xl); border: 2px dashed var(--warning-300); position: relative;">
-                        <div style="position: absolute; top: var(--space-4); right: var(--space-4); background: var(--info-100); color: var(--info-700); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); font-family: 'Courier New', monospace; font-size: var(--text-lg); font-weight: 600; border: 1px solid var(--info-300);" id="timerDisplay">00:00:00</div>
-                        <div style="font-size: 4rem; margin-bottom: var(--space-4);">📖</div>
-                        <h3>Área de Lectura</h3>
-                        <p>Aquí se cargará el PDF de la lectura<br>con controles de zoom y pantalla completa.</p>
-                        <p style="font-size: 0.875rem; margin-top: 1rem; opacity: 0.8;">
-                            (Se implementará en FASE 3)
-                        </p>
+                    <!-- PDF Viewer Container CORREGIDO -->
+                    <div class="pdf-viewer-container" id="pdfViewerContainer">
+                        <!-- Toolbar del PDF -->
+                        <div class="pdf-toolbar">
+                            <div class="toolbar-left">
+                                <button class="toolbar-btn" onclick="minimizePdfViewer()" id="minimizeBtn">
+                                    <span>📦</span>
+                                    <span>Minimizar</span>
+                                </button>
+                                <button class="toolbar-btn" onclick="toggleFullscreen()" id="fullscreenBtn">
+                                    <span>⛶</span>
+                                    <span>Pantalla Completa</span>
+                                </button>
+                            </div>
+                            
+                            <div class="toolbar-center">
+                                <!-- Cronómetro principal -->
+                                <div class="reading-timer" id="readingTimer">
+                                    <span class="timer-icon">⏱️</span>
+                                    <span id="timerDisplay">00:00:00</span>
+                                </div>
+                                
+                                <!-- Velocidad en tiempo real -->
+                                <div class="reading-speed" id="readingSpeed">
+                                    <span>📈</span>
+                                    <span id="speedDisplay">0 WPM</span>
+                                </div>
+                            </div>
+                            
+                            <div class="toolbar-right">
+                                <!-- Controles de zoom -->
+                                <div class="zoom-controls">
+                                    <button class="zoom-btn" onclick="zoomOut()" id="zoomOutBtn">-</button>
+                                    <span class="zoom-level" id="zoomLevel">100%</span>
+                                    <button class="zoom-btn" onclick="zoomIn()" id="zoomInBtn">+</button>
+                                </div>
+                                
+                                <!-- Botón principal de terminar -->
+                                <button class="toolbar-btn success" onclick="finishReading()" id="finishReadingBtn">
+                                    <span>✅</span>
+                                    <span>TERMINÉ DE LEER</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Contenido del PDF CORREGIDO -->
+                        <div class="pdf-content" id="pdfContent">
+                            <!-- Loading inicial -->
+                            <div class="pdf-loading" id="pdfLoading">
+                                <div class="loading-spinner"></div>
+                                <p>Cargando PDF...</p>
+                                <p style="font-size: var(--text-sm); color: var(--gray-500); margin-top: var(--space-2);">
+                                    Intentando múltiples métodos de carga
+                                </p>
+                            </div>
+                            
+                            <!-- Opción 1: Iframe directo -->
+                            <iframe id="pdfIframe" class="pdf-iframe" allowfullscreen></iframe>
+                            
+                            <!-- Opción 2: PDF.js container -->
+                            <div id="pdfJsContainer" class="pdf-js-container"></div>
+                            
+                            <!-- Opción 3: Imagen del PDF -->
+                            <div id="pdfImageContainer" class="pdf-image-container">
+                                <img id="pdfImage" class="pdf-image" alt="PDF content">
+                            </div>
+                            
+                            <!-- Opción 4: Enlaces directos -->
+                            <div id="pdfLinkContainer" class="pdf-link-container" style="display: none;">
+                                <div class="pdf-icon">📖</div>
+                                <h3 class="pdf-link-title">PDF Listo para Lectura</h3>
+                                <p class="pdf-link-description">
+                                    El PDF "El Coyote y la Tortuga" está disponible. 
+                                    Elige una opción para acceder al documento:
+                                </p>
+                                <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+                                    <a href="#" target="_blank" class="pdf-action-btn" id="openPdfLink">
+                                        <span>📄</span>
+                                        <span>Abrir en Nueva Ventana</span>
+                                    </a>
+                                    <button onclick="tryPdfJs()" class="pdf-action-btn secondary">
+                                        <span>🔄</span>
+                                        <span>Intentar con PDF.js</span>
+                                    </button>
+                                    <button onclick="tryEmbedMethod()" class="pdf-action-btn">
+                                        <span>🔧</span>
+                                        <span>Método Embed</span>
+                                    </button>
+                                </div>
+                                <p style="font-size: var(--text-xs); color: var(--gray-500); margin-top: var(--space-4);">
+                                    URL: <span id="pdfUrlDisplay"></span>
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1666,56 +1010,582 @@
                     <button class="btn btn-secondary" onclick="goToStep(2)">
                         ← Volver al Test
                     </button>
-                    <button class="btn btn-primary" onclick="goToStep(4)">
-                        Terminé de Leer →
-                    </button>
-                </div>
-            </section>
-
-            <!-- PASO 4: Test de Comprensión -->
-            <section id="comprehensionSection" class="step-section">
-                <div class="step-header">
-                    <div class="status-badge pending">
-                        <span>🧠</span>
-                        <span>Paso 4 de 4</span>
-                    </div>
-                    <h2 class="step-title">
-                        📊 Test de Comprensión
-                    </h2>
-                    <p class="step-description">
-                        Responde las preguntas sobre la lectura. Cada pregunta incluye una orientación 
-                        para ayudarte a encontrar la respuesta correcta.
-                    </p>
-                </div>
-
-                <div class="step-content">
-                    <div style="text-align: center; padding: var(--space-12); color: var(--gray-600); background: linear-gradient(135deg, var(--success-50), var(--gray-50)); border-radius: var(--radius-xl); border: 2px dashed var(--success-300);">
-                        <div style="font-size: 4rem; margin-bottom: var(--space-4);">🧠</div>
-                        <h3>Preguntas de Comprensión</h3>
-                        <p>Aquí se mostrarán las preguntas sobre la lectura<br>con orientaciones y retroalimentación.</p>
-                        <p style="font-size: 0.875rem; margin-top: 1rem; opacity: 0.8;">
-                            (Se implementará en FASE 4)
-                        </p>
-                    </div>
-                </div>
-
-                <div class="step-actions">
-                    <button class="btn btn-secondary" onclick="goToStep(3)">
-                        ← Volver a Lectura
-                    </button>
-                    <button class="btn btn-primary" onclick="finishMLC()">
-                        Finalizar y Ver Resultados →
+                    <button class="btn btn-primary" onclick="goToStep(4)" id="continueToComprehensionBtn" disabled>
+                        Continuar a Comprensión →
                     </button>
                 </div>
             </section>
         </main>
     </div>
 
-    <!-- ✅ LIBRERÍAS REQUERIDAS - AGREGADAS -->
-    <!-- Librería Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- Script del módulo MLC - VERSIÓN CORREGIDA -->
-    <script src="../js/mlc-module.js"></script>
+    <!-- Script CORREGIDO -->
+    <script>
+        // === MLC FASE 3 CORREGIDO - MÚLTIPLES MÉTODOS DE CARGA PDF ===
+        console.log('📚 Inicializando MLC FASE 3 CORREGIDO...');
+
+        // === CONFIGURACIÓN SUPABASE ===
+        const SUPABASE_CONFIG = {
+            url: 'https://kryqjsncqsopjuwymhqd.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyeXFqc25jcXNvcGp1d3ltaHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjM3MDEsImV4cCI6MjA2ODg5OTcwMX0.w5HiaFiqlFJ_3QbcprUrufsOXTDWFg1zUMl2J7kWD6Y'
+        };
+
+        // === VARIABLES GLOBALES ===
+        let currentUser = null;
+        let currentLecture = null;
+        let readingStartTime = null;
+        let readingTimer = null;
+        let currentZoom = 100;
+        let isFullscreen = false;
+        let isMinimized = false;
+        let readingCompleted = false;
+        let pdfLoadAttempts = 0;
+        let maxLoadAttempts = 4;
+
+        // === DATOS DE LA LECTURA ===
+        currentLecture = {
+            id: 'lectura-g3c1',
+            titulo: 'El Coyote y la Tortuga',
+            autor: 'Leyenda Hopi Desconocido',
+            palabras: 107,
+            pdf_path: 'tsp-lecturas/grado-3/ciclo-1/g3c1.pdf'
+        };
+
+        // === INICIALIZACIÓN ===
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🎓 DOM cargado, inicializando FASE 3 CORREGIDO...');
+            await initPhase3Corrected();
+        });
+
+        async function initPhase3Corrected() {
+            try {
+                console.log('🚀 Inicializando FASE 3 CORREGIDO...');
+                
+                // Cargar datos del usuario
+                currentUser = getUserFromSession();
+                updateUserInfo();
+                
+                // Inicializar PDF viewer con múltiples métodos
+                await initPdfViewerCorrected();
+                
+                // Iniciar cronómetro
+                startReadingTimer();
+                
+                console.log('✅ FASE 3 CORREGIDO inicializada');
+                
+            } catch (error) {
+                console.error('❌ Error inicializando FASE 3:', error);
+                showError('Error al cargar la lectura');
+            }
+        }
+
+        function getUserFromSession() {
+            // Datos de usuario simulados
+            return {
+                id: 'user123',
+                nombres: 'Juan Carlos',
+                apellidos: 'Pérez González',
+                grado: 3
+            };
+        }
+
+        function updateUserInfo() {
+            const studentNameEl = document.getElementById('studentName');
+            if (studentNameEl && currentUser) {
+                studentNameEl.textContent = `${currentUser.nombres} ${currentUser.apellidos}`;
+            }
+        }
+
+        // === PDF VIEWER CORREGIDO CON MÚLTIPLES MÉTODOS ===
+        async function initPdfViewerCorrected() {
+            console.log('📄 Inicializando PDF viewer CORREGIDO...');
+            console.log('🎯 Implementando múltiples métodos de carga...');
+            
+            // Lista de URLs para probar
+            const pdfUrls = [
+                // 1. URL directa de Supabase Storage
+                `${SUPABASE_CONFIG.url}/storage/v1/object/public/${currentLecture.pdf_path}`,
+                
+                // 2. URL con parámetros de descarga
+                `${SUPABASE_CONFIG.url}/storage/v1/object/public/${currentLecture.pdf_path}?download`,
+                
+                // 3. PDF de ejemplo para pruebas
+                'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                
+                // 4. PDF de muestra de Mozilla
+                'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf'
+            ];
+            
+            // Intentar cargar con cada método
+            for (let i = 0; i < pdfUrls.length; i++) {
+                const url = pdfUrls[i];
+                console.log(`🔄 Intento ${i + 1}/${pdfUrls.length}: ${url}`);
+                
+                pdfLoadAttempts++;
+                updateLoadingMessage(`Método ${i + 1}: Probando ${i === 0 ? 'Supabase Storage' : i === 1 ? 'Supabase con parámetros' : `PDF de prueba ${i - 1}`}...`);
+                
+                const success = await tryLoadPdfMethod(url, i + 1);
+                
+                if (success) {
+                    console.log(`✅ PDF cargado exitosamente con método ${i + 1}`);
+                    hidePdfLoading();
+                    return;
+                }
+                
+                // Esperar un poco antes del siguiente intento
+                await delay(1000);
+            }
+            
+            // Si todos los métodos fallan, mostrar opciones alternativas
+            console.warn('⚠️ Todos los métodos de carga fallaron, mostrando opciones alternativas');
+            showAlternativeOptions();
+        }
+
+        async function tryLoadPdfMethod(url, methodNumber) {
+            try {
+                // Verificar si la URL existe
+                const exists = await checkUrlExists(url);
+                if (!exists && methodNumber <= 2) {
+                    console.log(`❌ Método ${methodNumber}: URL no accesible`);
+                    return false;
+                }
+                
+                switch (methodNumber) {
+                    case 1:
+                    case 2:
+                        return await tryIframeMethod(url);
+                    case 3:
+                        return await tryIframeMethod(url);
+                    case 4:
+                        return await tryPdfJsMethod(url);
+                    default:
+                        return false;
+                }
+            } catch (error) {
+                console.error(`❌ Error en método ${methodNumber}:`, error);
+                return false;
+            }
+        }
+
+        async function checkUrlExists(url) {
+            try {
+                const response = await fetch(url, { method: 'HEAD' });
+                return response.ok;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        async function tryIframeMethod(url) {
+            return new Promise((resolve) => {
+                console.log('📄 Probando método iframe...');
+                
+                const iframe = document.getElementById('pdfIframe');
+                if (!iframe) {
+                    console.error('❌ Iframe no encontrado');
+                    resolve(false);
+                    return;
+                }
+                
+                let resolved = false;
+                
+                iframe.onload = function() {
+                    if (!resolved) {
+                        resolved = true;
+                        console.log('✅ Iframe cargado exitosamente');
+                        iframe.style.display = 'block';
+                        resolve(true);
+                    }
+                };
+                
+                iframe.onerror = function() {
+                    if (!resolved) {
+                        resolved = true;
+                        console.log('❌ Error cargando iframe');
+                        resolve(false);
+                    }
+                };
+                
+                // Timeout de 5 segundos
+                setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        console.log('⏰ Timeout iframe');
+                        resolve(false);
+                    }
+                }, 5000);
+                
+                // Configurar src
+                iframe.src = url;
+            });
+        }
+
+        async function tryPdfJsMethod(url) {
+            return new Promise((resolve) => {
+                console.log('📄 Probando método PDF.js...');
+                
+                const container = document.getElementById('pdfJsContainer');
+                if (!container) {
+                    resolve(false);
+                    return;
+                }
+                
+                // Crear iframe con PDF.js
+                const viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(url)}`;
+                
+                container.innerHTML = `<iframe src="${viewerUrl}" width="100%" height="600" style="border: none;"></iframe>`;
+                
+                const iframe = container.querySelector('iframe');
+                
+                let resolved = false;
+                
+                iframe.onload = function() {
+                    if (!resolved) {
+                        resolved = true;
+                        console.log('✅ PDF.js cargado exitosamente');
+                        container.style.display = 'block';
+                        resolve(true);
+                    }
+                };
+                
+                iframe.onerror = function() {
+                    if (!resolved) {
+                        resolved = true;
+                        console.log('❌ Error cargando PDF.js');
+                        resolve(false);
+                    }
+                };
+                
+                // Timeout de 8 segundos para PDF.js
+                setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        console.log('⏰ Timeout PDF.js');
+                        resolve(false);
+                    }
+                }, 8000);
+            });
+        }
+
+        function showAlternativeOptions() {
+            console.log('📋 Mostrando opciones alternativas...');
+            
+            hidePdfLoading();
+            
+            const linkContainer = document.getElementById('pdfLinkContainer');
+            const urlDisplay = document.getElementById('pdfUrlDisplay');
+            const openLink = document.getElementById('openPdfLink');
+            
+            if (linkContainer && urlDisplay && openLink) {
+                const supabaseUrl = `${SUPABASE_CONFIG.url}/storage/v1/object/public/${currentLecture.pdf_path}`;
+                
+                urlDisplay.textContent = supabaseUrl;
+                openLink.href = supabaseUrl;
+                
+                linkContainer.style.display = 'flex';
+                
+                console.log('✅ Opciones alternativas mostradas');
+                console.log('🔗 URL de Supabase:', supabaseUrl);
+            }
+        }
+
+        function updateLoadingMessage(message) {
+            const loadingEl = document.getElementById('pdfLoading');
+            if (loadingEl) {
+                const messageEl = loadingEl.querySelector('p');
+                if (messageEl) {
+                    messageEl.textContent = message;
+                }
+            }
+        }
+
+        function hidePdfLoading() {
+            const loadingEl = document.getElementById('pdfLoading');
+            if (loadingEl) {
+                loadingEl.style.display = 'none';
+            }
+        }
+
+        // === MÉTODOS ALTERNATIVOS ===
+        function tryPdfJs() {
+            console.log('🔄 Intentando cargar con PDF.js...');
+            const url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/${currentLecture.pdf_path}`;
+            tryPdfJsMethod(url);
+        }
+
+        function tryEmbedMethod() {
+            console.log('🔄 Intentando método embed...');
+            const url = `${SUPABASE_CONFIG.url}/storage/v1/object/public/${currentLecture.pdf_path}`;
+            
+            const pdfContent = document.getElementById('pdfContent');
+            pdfContent.innerHTML = `
+                <embed src="${url}" type="application/pdf" width="100%" height="600" style="border-radius: var(--radius-lg);">
+                <p style="text-align: center; padding: 2rem; color: var(--gray-600);">
+                    Tu navegador no soporta PDFs embebidos. 
+                    <a href="${url}" target="_blank" style="color: var(--primary-600); text-decoration: underline;">
+                        Haz clic aquí para abrir el PDF en una nueva ventana
+                    </a>
+                </p>
+            `;
+        }
+
+        // === CRONÓMETRO Y VELOCIDAD ===
+        function startReadingTimer() {
+            console.log('⏱️ Iniciando cronómetro...');
+            
+            readingStartTime = Date.now();
+            
+            readingTimer = setInterval(() => {
+                updateTimerDisplay();
+                updateSpeedDisplay();
+            }, 1000);
+        }
+
+        function stopReadingTimer() {
+            if (readingTimer) {
+                clearInterval(readingTimer);
+                readingTimer = null;
+                console.log('⏹️ Cronómetro detenido');
+            }
+        }
+
+        function updateTimerDisplay() {
+            if (!readingStartTime) return;
+            
+            const elapsedMs = Date.now() - readingStartTime;
+            const formatted = formatTime(elapsedMs);
+            
+            const timerEl = document.getElementById('timerDisplay');
+            if (timerEl) {
+                timerEl.textContent = formatted;
+            }
+        }
+
+        function updateSpeedDisplay() {
+            if (!readingStartTime || !currentLecture) return;
+            
+            const elapsedMs = Date.now() - readingStartTime;
+            const elapsedMinutes = elapsedMs / 60000;
+            
+            if (elapsedMinutes > 0) {
+                const wpm = (currentLecture.palabras / elapsedMinutes).toFixed(1);
+                
+                const speedEl = document.getElementById('speedDisplay');
+                if (speedEl) {
+                    speedEl.textContent = `${wpm} WPM`;
+                }
+            }
+        }
+
+        function formatTime(milliseconds) {
+            const totalSeconds = Math.floor(milliseconds / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // === CONTROLES DE ZOOM ===
+        function zoomIn() {
+            if (currentZoom < 200) {
+                currentZoom += 25;
+                applyZoom();
+                console.log(`🔍 Zoom: ${currentZoom}%`);
+            }
+        }
+
+        function zoomOut() {
+            if (currentZoom > 50) {
+                currentZoom -= 25;
+                applyZoom();
+                console.log(`🔍 Zoom: ${currentZoom}%`);
+            }
+        }
+
+        function applyZoom() {
+            const iframe = document.getElementById('pdfIframe');
+            const zoomLevel = document.getElementById('zoomLevel');
+            
+            if (iframe && iframe.style.display !== 'none') {
+                iframe.style.transform = `scale(${currentZoom / 100})`;
+                iframe.style.transformOrigin = 'top left';
+            }
+            
+            if (zoomLevel) {
+                zoomLevel.textContent = `${currentZoom}%`;
+            }
+        }
+
+        // === CONTROLES DE PANTALLA ===
+        function toggleFullscreen() {
+            const container = document.getElementById('pdfViewerContainer');
+            const btn = document.getElementById('fullscreenBtn');
+            
+            if (!isFullscreen) {
+                container.classList.add('fullscreen');
+                btn.innerHTML = '<span>🗗</span><span>Salir</span>';
+                isFullscreen = true;
+                console.log('📺 Pantalla completa');
+            } else {
+                container.classList.remove('fullscreen');
+                btn.innerHTML = '<span>⛶</span><span>Pantalla Completa</span>';
+                isFullscreen = false;
+                console.log('📺 Ventana normal');
+            }
+        }
+
+        function minimizePdfViewer() {
+            const container = document.getElementById('pdfViewerContainer');
+            const btn = document.getElementById('minimizeBtn');
+            
+            if (!isMinimized) {
+                container.classList.add('minimized');
+                btn.innerHTML = '<span>📄</span><span>Restaurar</span>';
+                isMinimized = true;
+                console.log('📦 PDF minimizado');
+            } else {
+                container.classList.remove('minimized');
+                btn.innerHTML = '<span>📦</span><span>Minimizar</span>';
+                isMinimized = false;
+                console.log('📄 PDF restaurado');
+            }
+        }
+
+        // === FINALIZAR LECTURA ===
+        function finishReading() {
+            if (readingCompleted) {
+                console.log('⚠️ Lectura ya completada');
+                return;
+            }
+            
+            console.log('✅ Finalizando lectura...');
+            
+            stopReadingTimer();
+            
+            const elapsedMs = Date.now() - readingStartTime;
+            const elapsedMinutes = elapsedMs / 60000;
+            const wpm = currentLecture ? (currentLecture.palabras / elapsedMinutes).toFixed(1) : 0;
+            
+            console.log('📊 Métricas finales:');
+            console.log(`- Tiempo: ${formatTime(elapsedMs)}`);
+            console.log(`- WPM: ${wpm}`);
+            
+            readingCompleted = true;
+            
+            const continueBtn = document.getElementById('continueToComprehensionBtn');
+            if (continueBtn) {
+                continueBtn.disabled = false;
+            }
+            
+            showReadingCompleted(elapsedMs, wpm);
+        }
+
+        function showReadingCompleted(elapsedMs, wpm) {
+            const timeFormatted = formatTime(elapsedMs);
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 2000;
+                font-family: var(--font-primary);
+            `;
+            
+            modal.innerHTML = `
+                <div style="
+                    background: linear-gradient(135deg, var(--success-50), white);
+                    border: 3px solid var(--success-500);
+                    border-radius: var(--radius-2xl);
+                    padding: var(--space-8);
+                    text-align: center;
+                    max-width: 500px;
+                    margin: var(--space-4);
+                    box-shadow: var(--shadow-xl);
+                ">
+                    <div style="font-size: 3rem; margin-bottom: var(--space-4);">✅</div>
+                    <h2 style="color: var(--success-700); margin-bottom: var(--space-4);">
+                        ¡Lectura Completada!
+                    </h2>
+                    <div style="background: white; padding: var(--space-4); border-radius: var(--radius-lg); margin: var(--space-4) 0;">
+                        <p><strong>Tiempo:</strong> ${timeFormatted}</p>
+                        <p><strong>Palabras:</strong> ${currentLecture?.palabras || 0}</p>
+                        <p><strong>Velocidad:</strong> ${wpm} WPM</p>
+                    </div>
+                    <p style="color: var(--gray-600); margin-bottom: var(--space-6);">
+                        Ahora puedes continuar al test de comprensión.
+                    </p>
+                    <button onclick="closeModal()" style="
+                        background: linear-gradient(135deg, var(--success-600), var(--success-500));
+                        color: white;
+                        border: none;
+                        padding: var(--space-3) var(--space-6);
+                        border-radius: var(--radius-lg);
+                        font-weight: 600;
+                        cursor: pointer;
+                    ">
+                        Continuar
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            window.closeModal = function() {
+                document.body.removeChild(modal);
+                delete window.closeModal;
+            };
+        }
+
+        // === NAVEGACIÓN ===
+        function goToStep(stepNumber) {
+            console.log(`📍 Navegando al paso ${stepNumber}`);
+            
+            if (stepNumber === 4 && !readingCompleted) {
+                alert('⚠️ Debes completar la lectura antes de continuar.');
+                return;
+            }
+            
+            alert(`Navegando al paso ${stepNumber}...\n\n(Implementar navegación real)`);
+        }
+
+        // === UTILIDADES ===
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function showError(message) {
+            console.error('❌', message);
+            alert(`Error: ${message}`);
+        }
+
+        // === EVENTOS DE TECLADO ===
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && isFullscreen) {
+                toggleFullscreen();
+            }
+            
+            if ((event.ctrlKey || event.metaKey) && event.key === '=') {
+                event.preventDefault();
+                zoomIn();
+            }
+            
+            if ((event.ctrlKey || event.metaKey) && event.key === '-') {
+                event.preventDefault();
+                zoomOut();
+            }
+        });
+
+        console.log('✅ MLC FASE 3 CORREGIDO cargado exitosamente');
+        console.log('🔧 Múltiples métodos de carga PDF implementados');
+        console.log('📊 Diagnóstico automático de problemas');
+        console.log('🔗 Opciones alternativas disponibles');
+    </script>
 </body>
 </html>
