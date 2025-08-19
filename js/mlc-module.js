@@ -1,1451 +1,312 @@
-// === TSP v2.0 - MÓDULO MLC (LECTURA CRÍTICA) - FASE 3 COMPLETA ===
-// Archivo: js/mlc-module.js
-// FASE 3: PDF embebido + Cronómetro + Controles de zoom + Velocidad en tiempo real
+// =======================
+//  MLC MODULE v6 (Modal de resultados + review + export a dashboard)
+// =======================
 
-console.log('📚 Inicializando Módulo de Lectura Crítica TSP v2.0 - FASE 3 COMPLETA...');
-
-// === CONFIGURACIÓN SUPABASE ===
 const SUPABASE_CONFIG = {
-    url: 'https://kryqjsncqsopjuwymhqd.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyeXFqc25jcXNvcGp1d3ltaHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjM3MDEsImV4cCI6MjA2ODg5OTcwMX0.w5HiaFiqlFJ_3QbcprUrufsOXTDWFg1zUMl2J7kWD6Y'
+  url: 'https://kryqjsncqsopjuwymhqd.supabase.co',
+  anonKey:
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyeXFqc25jcXNvcGp1d3ltaHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjM3MDEsImV4cCI6MjA2ODg5OTcwMX0.w5HiaFiqlFJ_3QbcprUrufsOXTDWFg1zUMl2J7kWD6Y',
+};
+const sb = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+
+// Storage
+const STORAGE_BUCKET = 'tsp-lecturas';
+const STORAGE_FALLBACK_PATH = 'grado-3/ciclo-1/g3c1.pdf';
+
+// Estado
+const state = {
+  user: null,
+  lecture: null,
+  step: 1,
+  seed: null,
+  reseedOnNextVocabTest: false,
+  vocabAnswers: {},
+  compAnswers: {},
+  compAnswersJson: null,
+  readingStartedAt: null,
+  readingAccumMs: 0,
+  _timer: null,
+  vocabPassed: false,
+  fromStep: null, // 'reading'|'comprension'|null
 };
 
-// Inicializar Supabase si está disponible
-let supabase = null;
-if (typeof window !== 'undefined' && window.supabase) {
-    supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
-    console.log('✅ Cliente Supabase inicializado');
-} else {
-    console.warn('⚠️ Librería Supabase no encontrada, usando modo desarrollo');
+// Utils
+const byId = (id) => document.getElementById(id);
+const fmtTime = (ms) => {
+  const s = Math.floor((ms || 0) / 1000);
+  const m = String(Math.floor(s / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${m}:${ss}`;
+};
+function rand(seed){ let x=seed|0; return ()=>((x^=x<<13),(x^=x>>>17),(x^=x<<5),(x>>>0)/4294967296); }
+function seededShuffle(a,seed){ const r=rand(seed); a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+function normKey(v){ if(v==null)return null; const s=String(v).trim().toUpperCase(); if(['A','B','C','D'].includes(s))return s; if(['1','2','3','4'].includes(s))return ['A','B','C','D'][+s-1]; return s; }
+async function toggleFullscreen(el){ try{ if(!document.fullscreenElement) await (el||document.documentElement).requestFullscreen(); else await document.exitFullscreen(); }catch{} }
+async function ensureExitFullscreen(){ try{ if(document.fullscreenElement) await document.exitFullscreen(); }catch{} }
+
+// Wizard
+function showOnly(sectionId){
+  const ids=['step1','step2','step3','step4']; // sin "finalResults"
+  ids.forEach(id=>{
+    const el=byId(id); if(!el) return;
+    const on=id===sectionId;
+    el.classList.toggle('active',on);
+    if(on){ el.removeAttribute('hidden'); el.inert=false; }
+    else{ el.setAttribute('hidden',''); el.inert=true; }
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function setStepsUI(){
+  const perc=((state.step-1)/3)*100;
+  byId('mlcBar').style.width=`${Math.max(0,Math.min(100,perc))}%`;
+  for(let i=1;i<=4;i++){
+    byId(`st${i}`).classList.remove('active','done');
+    if(i<state.step) byId(`st${i}`).classList.add('done');
+    if(i===state.step) byId(`st${i}`).classList.add('active');
+  }
+}
+function goTo(n){
+  if(n===2 && state.vocabPassed) n=3;
+  state.step=n; setStepsUI();
+  if(n===1) showOnly('step1');
+  if(n===2){ resetVocabTest({reshuffle:state.reseedOnNextVocabTest}); state.reseedOnNextVocabTest=false; showOnly('step2'); }
+  if(n===3) showOnly('step3');
+  if(n===4) showOnly('step4');
 }
 
-// === CLASE PRINCIPAL DEL MÓDULO MLC ===
-class MlcModule {
-    constructor() {
-        this.currentUser = null;
-        this.currentLecture = null;
-        this.currentStep = 1;
-        
-        // Estados de pasos con sistema de guardas
-        this.stepStates = {
-            vocabulary: 'pending',      // pending, active, completed
-            testVocabulary: 'locked',   // locked, pending, active, completed
-            reading: 'locked',          // locked, pending, active, completed
-            comprehension: 'locked'     // locked, pending, active, completed
-        };
-        
-        // Variables para vocabulario y test
-        this.vocabularyData = null;
-        this.vocabularyTestData = null;
-        this.vocabularyAnswers = {};
-        this.shuffleSeed = null;
-        
-        // === NUEVAS VARIABLES PARA FASE 3 - LECTURA ===
-        this.readingStartTime = null;
-        this.readingEndTime = null;
-        this.readingTimer = null;
-        this.currentZoom = 100;
-        this.isFullscreen = false;
-        this.isMinimized = false;
-        this.readingCompleted = false;
-        this.pdfLoaded = false;
-        
-        console.log('🎯 Módulo MLC inicializado - FASE 3 COMPLETA con PDF embebido');
-    }
-
-    // === INICIALIZACIÓN ===
-    async init() {
-        try {
-            console.log('🚀 Iniciando módulo MLC FASE 3 COMPLETA...');
-            
-            // Cargar usuario de la sesión
-            this.currentUser = this.getUserFromSession();
-            
-            if (!this.currentUser) {
-                console.warn('⚠️ No hay usuario en sesión');
-                this.redirectToDashboard();
-                return;
-            }
-
-            // Actualizar información del usuario en la interfaz
-            this.updateUserInfo();
-            
-            // Cargar datos de la lectura asignada DESDE SUPABASE
-            await this.loadAssignedLectureFromSupabase();
-            
-            // Mostrar información de la lectura
-            this.displayLectureInfo();
-            
-            // Generar seed para aleatorización consistente
-            this.generateShuffleSeed();
-            
-            // Cargar vocabulario (FASE 2)
-            await this.loadVocabulary();
-            
-            // Inicializar el primer paso
-            this.goToStep(1);
-            
-            console.log('✅ Módulo MLC FASE 3 COMPLETA inicializado correctamente');
-        } catch (error) {
-            console.error('❌ Error inicializando módulo MLC:', error);
-            this.showError('Error al cargar el módulo de lectura crítica');
-        }
-    }
-
-    // === GESTIÓN DE USUARIO ===
-    getUserFromSession() {
-        const userData = sessionStorage.getItem('tsp_user');
-        if (userData) {
-            try {
-                return JSON.parse(userData);
-            } catch (e) {
-                console.error('Error parsing user data:', e);
-            }
-        }
-        
-        // Datos de prueba para desarrollo
-        console.log('🧪 Usando datos de prueba para desarrollo');
-        return {
-            id: 'user123',
-            codigo_estudiante: 'E001002',
-            nombres: 'Juan Carlos',
-            apellidos: 'Pérez González',
-            grado: 3  // Grado 3 para el PDF de prueba
-        };
-    }
-
-    updateUserInfo() {
-        const studentNameEl = document.getElementById('studentName');
-        if (studentNameEl && this.currentUser) {
-            studentNameEl.textContent = `${this.currentUser.nombres} ${this.currentUser.apellidos}`;
-        }
-    }
-
-    // === INFORMACIÓN DE LA LECTURA ===
-    displayLectureInfo() {
-        console.log('📋 Mostrando información de la lectura...');
-        
-        if (!this.currentLecture) {
-            console.warn('⚠️ No hay lectura cargada para mostrar información');
-            return;
-        }
-
-        let lectureInfoContainer = document.getElementById('lectureInfo');
-        
-        if (!lectureInfoContainer) {
-            const vocabularySection = document.getElementById('vocabularySection');
-            const stepHeader = vocabularySection.querySelector('.step-header');
-            
-            lectureInfoContainer = document.createElement('div');
-            lectureInfoContainer.id = 'lectureInfo';
-            lectureInfoContainer.className = 'lecture-info-card';
-            
-            stepHeader.parentNode.insertBefore(lectureInfoContainer, stepHeader.nextSibling);
-        }
-
-        lectureInfoContainer.innerHTML = `
-            <div class="lecture-info-content">
-                <div class="lecture-info-header">
-                    <span class="lecture-icon">📖</span>
-                    <h3>Información de la Lectura</h3>
-                </div>
-                <div class="lecture-info-grid">
-                    <div class="info-item">
-                        <span class="info-label">Título:</span>
-                        <span class="info-value">${this.currentLecture.titulo || 'No disponible'}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Autor:</span>
-                        <span class="info-value">${this.currentLecture.autor || 'No disponible'}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Grado:</span>
-                        <span class="info-value">${this.formatGradeRange()}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Palabras:</span>
-                        <span class="info-value">${this.currentLecture.palabras || 0} palabras</span>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        console.log('✅ Información de la lectura mostrada exitosamente');
-    }
-
-    formatGradeRange() {
-        if (!this.currentLecture.grado_minimo && !this.currentLecture.grado_maximo) {
-            return 'No especificado';
-        }
-        
-        if (this.currentLecture.grado_minimo === this.currentLecture.grado_maximo) {
-            return `${this.currentLecture.grado_minimo}°`;
-        }
-        
-        return `${this.currentLecture.grado_minimo}° - ${this.currentLecture.grado_maximo}°`;
-    }
-
-    // === SEED PARA ALEATORIZACIÓN ===
-    generateShuffleSeed() {
-        const today = new Date().toDateString();
-        const seedString = `${this.currentUser.id}_${today}`;
-        this.shuffleSeed = this.simpleHash(seedString);
-        console.log('🎲 Seed de aleatorización generado:', this.shuffleSeed);
-    }
-
-    simpleHash(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-        }
-        return Math.abs(hash);
-    }
-
-    // === CARGA DE DATOS DESDE SUPABASE ===
-    async loadAssignedLectureFromSupabase() {
-        console.log('📖 Cargando lectura asignada DESDE SUPABASE...');
-        
-        try {
-            if (!supabase) {
-                throw new Error('Cliente Supabase no disponible');
-            }
-
-            // Por ahora usar datos simulados que incluyen el PDF path correcto
-            this.currentLecture = {
-                id: 'lectura-g3c1',
-                titulo: 'El Coyote y la Tortuga',
-                autor: 'Leyenda Hopi Desconocido',
-                palabras: 107,
-                pdf_path: 'tsp-lecturas/grado-3/ciclo-1/g3c1.pdf',
-                grado_minimo: 3,
-                grado_maximo: 3,
-                vocabulario: {
-                    items: [
-                        {
-                            indice: 1,
-                            termino: 'enojamos',
-                            definicion: 'Cuando alguien se siente molesto o furioso por algo.',
-                            pregunta: '¿Qué significa "enojamos" en el texto?',
-                            opciones: {
-                                A: 'Nos reímos mucho.',
-                                B: 'Nos sentimos felices.',
-                                C: 'Nos molestamos o sentimos rabia.',
-                                D: 'Nos cansamos de esperar.'
-                            },
-                            respuesta_correcta: 'C'
-                        },
-                        // Agregar más términos según sea necesario
-                    ]
-                },
-                preguntas_tc: {
-                    preguntas: [
-                        {
-                            indice: 1,
-                            pregunta: '¿Por qué el coyote arrojó a la tortuga al río?',
-                            opciones: {
-                                A: 'Porque quería verla nadar.',
-                                B: 'Porque la tortuga lo ayudó.',
-                                C: 'Porque estaba enojado con ella.',
-                                D: 'Porque tenía miedo del río.'
-                            },
-                            respuesta_correcta: 'C',
-                            orientacion: 'Busca en el texto cómo se sentía el coyote...',
-                            retroalimentacion: 'La opción correcta es C porque el texto dice...'
-                        }
-                    ]
-                },
-                activo: true
-            };
-            
-            await this.validateLectureData();
-            console.log('✅ Lectura cargada con PDF path:', this.currentLecture.pdf_path);
-            
-        } catch (error) {
-            console.error('❌ Error cargando lectura desde Supabase:', error);
-            throw new Error(`Error al cargar lectura: ${error.message}`);
-        }
-    }
-
-    async validateLectureData() {
-        console.log('🔍 Validando estructura de datos de la lectura...');
-        
-        if (!this.currentLecture) {
-            throw new Error('No hay lectura cargada');
-        }
-
-        const requiredFields = ['id', 'titulo', 'autor', 'palabras', 'pdf_path', 'vocabulario', 'preguntas_tc'];
-        for (const field of requiredFields) {
-            if (!this.currentLecture[field]) {
-                console.warn(`⚠️ Campo faltante o vacío: ${field}`);
-            }
-        }
-
-        console.log('✅ Estructura de datos validada:');
-        console.log(`- Título: ${this.currentLecture.titulo}`);
-        console.log(`- PDF: ${this.currentLecture.pdf_path}`);
-        console.log(`- Palabras: ${this.currentLecture.palabras}`);
-    }
-
-    // === VOCABULARIO (FASE 2) ===
-    async loadVocabulary() {
-        console.log('📚 Cargando vocabulario DESDE SUPABASE...');
-        
-        try {
-            if (!this.currentLecture || !this.currentLecture.vocabulario || !this.currentLecture.vocabulario.items) {
-                throw new Error('No hay vocabulario disponible en la lectura cargada');
-            }
-
-            this.vocabularyData = this.currentLecture.vocabulario.items;
-            
-            console.log('📊 Vocabulario cargado desde Supabase:');
-            console.log(`- Total de términos: ${this.vocabularyData.length}`);
-            
-            await this.renderVocabulary();
-            this.prepareVocabularyTest();
-            this.enableContinueToTest();
-            
-            console.log('✅ Vocabulario cargado desde Supabase - Términos disponibles:', this.vocabularyData.length);
-            
-        } catch (error) {
-            console.error('❌ Error cargando vocabulario desde Supabase:', error);
-            this.showError(`Error al cargar el vocabulario: ${error.message}`);
-        }
-    }
-
-    async renderVocabulary() {
-        const container = document.getElementById('vocabularyContent');
-        
-        if (!this.vocabularyData || this.vocabularyData.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: var(--error-600);">No hay vocabulario disponible</p>';
-            return;
-        }
-
-        const vocabularyHTML = this.vocabularyData.map(item => `
-            <div class="vocabulary-item">
-                <div class="term-number">${item.indice || (this.vocabularyData.indexOf(item) + 1)}</div>
-                <div class="term-content">
-                    <h4>${item.termino}</h4>
-                    <p class="term-definition">${item.definicion}</p>
-                </div>
-            </div>
-        `).join('');
-
-        container.innerHTML = vocabularyHTML;
-        
-        console.log('📚 Marcando vocabulario como completado...');
-        this.stepStates.vocabulary = 'completed';
-        this.stepStates.testVocabulary = 'pending';
-        
-        console.log('✅ Vocabulario renderizado desde Supabase y marcado como completado');
-    }
-
-    enableContinueToTest() {
-        const btn = document.getElementById('continueToTestBtn');
-        if (btn) {
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            console.log('✅ Botón "Continuar al Test" habilitado');
-        }
-    }
-
-    // === TEST DE VOCABULARIO (FASE 2) ===
-    prepareVocabularyTest() {
-        console.log('📝 Preparando test de vocabulario con datos de Supabase...');
-        
-        this.vocabularyTestData = this.vocabularyData.map(item => {
-            if (!item.pregunta || !item.opciones || !item.respuesta_correcta) {
-                console.warn('⚠️ Término sin pregunta completa:', item.termino);
-                return null;
-            }
-
-            const shuffledOptions = this.shuffleOptionsWithSeed(item.opciones, this.shuffleSeed + (item.indice || 0));
-            
-            return {
-                ...item,
-                shuffledOptions: shuffledOptions,
-                correctAnswerAfterShuffle: this.findCorrectAfterShuffle(item.opciones, item.respuesta_correcta, shuffledOptions)
-            };
-        }).filter(item => item !== null);
-        
-        console.log('✅ Test de vocabulario preparado con datos de Supabase:');
-        console.log(`- Preguntas válidas: ${this.vocabularyTestData.length}`);
-    }
-
-    shuffleOptionsWithSeed(opciones, seed) {
-        const letters = ['A', 'B', 'C', 'D'];
-        const optionsArray = letters.map(letter => ({
-            letter: letter,
-            text: opciones[letter]
-        })).filter(option => option.text);
-        
-        for (let i = optionsArray.length - 1; i > 0; i--) {
-            const j = Math.floor(this.seededRandom(seed + i) * (i + 1));
-            [optionsArray[i], optionsArray[j]] = [optionsArray[j], optionsArray[i]];
-        }
-        
-        const shuffled = {};
-        optionsArray.forEach((option, index) => {
-            shuffled[letters[index]] = option.text;
-        });
-        
-        return shuffled;
-    }
-
-    findCorrectAfterShuffle(originalOptions, originalCorrect, shuffledOptions) {
-        const correctText = originalOptions[originalCorrect];
-        
-        for (const letter of ['A', 'B', 'C', 'D']) {
-            if (shuffledOptions[letter] === correctText) {
-                return letter;
-            }
-        }
-        
-        return 'A';
-    }
-
-    seededRandom(seed) {
-        const x = Math.sin(seed) * 10000;
-        return x - Math.floor(x);
-    }
-
-    loadVocabularyTest() {
-        console.log('📝 Cargando test de vocabulario...');
-        
-        const container = document.getElementById('vocabularyTestContent');
-        
-        if (!this.vocabularyTestData || this.vocabularyTestData.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: var(--error-600);">Error cargando el test desde Supabase</p>';
-            return;
-        }
-
-        const questionsHTML = this.vocabularyTestData.map(item => `
-            <div class="question-item" data-question-id="${item.indice || this.vocabularyTestData.indexOf(item) + 1}">
-                <div class="question-header">
-                    <span class="question-number">Pregunta ${item.indice || this.vocabularyTestData.indexOf(item) + 1}</span>
-                </div>
-                <div class="question-text">
-                    ${item.pregunta}
-                </div>
-                <div class="question-options">
-                    ${Object.entries(item.shuffledOptions).map(([letter, text]) => `
-                        <label class="option-label" data-letter="${letter}">
-                            <input type="radio" name="question_${item.indice || this.vocabularyTestData.indexOf(item) + 1}" value="${letter}" 
-                                   onchange="selectVocabularyAnswer(${item.indice || this.vocabularyTestData.indexOf(item) + 1}, '${letter}')">
-                            <span class="option-text">${letter}. ${text}</span>
-                        </label>
-                    `).join('')}
-                </div>
-            </div>
-        `).join('');
-
-        container.innerHTML = questionsHTML;
-        
-        console.log('✅ Test de vocabulario cargado con opciones aleatorizadas');
-    }
-
-    selectVocabularyAnswer(questionId, answer) {
-        console.log(`📝 Respuesta seleccionada - Pregunta ${questionId}: ${answer}`);
-        
-        this.vocabularyAnswers[questionId] = answer;
-        
-        const questionItem = document.querySelector(`[data-question-id="${questionId}"]`);
-        if (questionItem) {
-            questionItem.classList.add('answered');
-        }
-        
-        const options = document.querySelectorAll(`input[name="question_${questionId}"]`);
-        options.forEach(option => {
-            const label = option.closest('.option-label');
-            label.classList.toggle('selected', option.checked);
-        });
-        
-        this.checkTestProgress();
-    }
-
-    checkTestProgress() {
-        const totalQuestions = this.vocabularyTestData.length;
-        const answeredQuestions = Object.keys(this.vocabularyAnswers).length;
-        
-        console.log(`📊 Progreso del test: ${answeredQuestions}/${totalQuestions}`);
-        
-        const submitBtn = document.getElementById('submitTestBtn');
-        if (submitBtn) {
-            submitBtn.disabled = answeredQuestions < totalQuestions;
-            submitBtn.style.opacity = answeredQuestions < totalQuestions ? '0.6' : '1';
-        }
-    }
-
-    async submitVocabularyTest() {
-        console.log('📝 Enviando test de vocabulario...');
-        
-        try {
-            const results = this.calculateVocabularyResults();
-            
-            this.showSimpleCorrection(results);
-            
-            if (results.score === results.total) {
-                this.stepStates.testVocabulary = 'completed';
-                this.stepStates.reading = 'pending';
-                this.enableContinueToReading();
-                console.log(`✅ Test aprobado ${results.score}/${results.total} - Lectura desbloqueada`);
-            } else {
-                console.log(`❌ Test no aprobado ${results.score}/${results.total}`);
-                this.showRetryOption();
-            }
-            
-        } catch (error) {
-            console.error('❌ Error enviando test:', error);
-            this.showError('Error al procesar las respuestas');
-        }
-    }
-
-    calculateVocabularyResults() {
-        let correctAnswers = 0;
-        const details = [];
-        
-        this.vocabularyTestData.forEach(item => {
-            const questionId = item.indice || this.vocabularyTestData.indexOf(item) + 1;
-            const userAnswer = this.vocabularyAnswers[questionId];
-            const isCorrect = userAnswer === item.correctAnswerAfterShuffle;
-            
-            if (isCorrect) correctAnswers++;
-            
-            details.push({
-                question: questionId,
-                userAnswer: userAnswer,
-                correctAnswer: item.correctAnswerAfterShuffle,
-                isCorrect: isCorrect,
-                term: item.termino,
-                originalData: item
-            });
-        });
-        
-        return {
-            score: correctAnswers,
-            total: this.vocabularyTestData.length,
-            percentage: (correctAnswers / this.vocabularyTestData.length) * 100,
-            details: details
-        };
-    }
-
-    showSimpleCorrection(results) {
-        console.log('🎨 Aplicando corrección visual simple en el formulario...');
-
-        const submitBtn = document.getElementById('submitTestBtn');
-        if (submitBtn) {
-            submitBtn.style.display = 'none';
-        }
-
-        results.details.forEach(detail => {
-            const questionItem = document.querySelector(`[data-question-id="${detail.question}"]`);
-            if (!questionItem) return;
-
-            const options = questionItem.querySelectorAll('.option-label');
-            
-            options.forEach(optionLabel => {
-                const letter = optionLabel.dataset.letter;
-                const radio = optionLabel.querySelector('input[type="radio"]');
-                
-                if (letter === detail.userAnswer) {
-                    if (detail.isCorrect) {
-                        optionLabel.style.backgroundColor = '#d1fae5';
-                        optionLabel.style.borderColor = '#10b981';
-                        optionLabel.style.color = '#065f46';
-                        optionLabel.innerHTML = optionLabel.innerHTML.replace(letter + '.', letter + '. ✅');
-                    } else {
-                        optionLabel.style.backgroundColor = '#fee2e2';
-                        optionLabel.style.borderColor = '#ef4444';
-                        optionLabel.style.color = '#991b1b';
-                        optionLabel.innerHTML = optionLabel.innerHTML.replace(letter + '.', letter + '. ❌');
-                    }
-                }
-                
-                if (letter === detail.correctAnswer && letter !== detail.userAnswer) {
-                    optionLabel.style.backgroundColor = '#d1fae5';
-                    optionLabel.style.borderColor = '#10b981';
-                    optionLabel.style.color = '#065f46';
-                    optionLabel.innerHTML = optionLabel.innerHTML.replace(letter + '.', letter + '. ✅ (Correcta)');
-                }
-                
-                radio.disabled = true;
-            });
-
-            questionItem.classList.add('corrected');
-            questionItem.classList.add(detail.isCorrect ? 'correct' : 'incorrect');
-        });
-
-        this.showSummaryResults(results);
-        console.log('✅ Corrección visual simple aplicada exitosamente');
-    }
-
-    showSummaryResults(results) {
-        const resultsContainer = document.getElementById('testResults');
-        
-        const isSuccess = results.score === results.total;
-        const resultClass = isSuccess ? 'success' : 'error';
-        const resultMessage = isSuccess 
-            ? '¡Perfecto! Has completado el vocabulario correctamente.' 
-            : `Necesitas ${results.total}/${results.total} para continuar. Obtuviste ${results.score}/${results.total}.`;
-        
-        resultsContainer.innerHTML = `
-            <div class="result-score ${resultClass}">
-                ${results.score}/${results.total}
-            </div>
-            <div class="result-message">
-                ${resultMessage}
-            </div>
-            <div class="result-details">
-                ${isSuccess 
-                    ? 'Ahora puedes continuar a la lectura del texto.' 
-                    : 'Revisa las respuestas marcadas arriba y vuelve a intentarlo.'
-                }
-            </div>
-        `;
-        
-        resultsContainer.style.display = 'block';
-        resultsContainer.className = `test-results ${resultClass}`;
-        
-        console.log(`✅ Resumen de resultados mostrado: ${results.score}/${results.total}`);
-    }
-
-    enableContinueToReading() {
-        const btn = document.getElementById('continueToReadingBtn');
-        if (btn) {
-            btn.style.display = 'inline-flex';
-            btn.disabled = false;
-        }
-    }
-
-    showRetryOption() {
-        const actions = document.querySelector('#testVocabularySection .step-actions');
-        
-        const retryBtn = document.createElement('button');
-        retryBtn.className = 'btn btn-warning';
-        retryBtn.onclick = () => this.retryVocabularyTest();
-        retryBtn.innerHTML = '🔄 Intentar de Nuevo';
-        
-        actions.appendChild(retryBtn);
-    }
-
-    retryVocabularyTest() {
-        console.log('🔄 Reintentando test de vocabulario...');
-        
-        this.vocabularyAnswers = {};
-        this.shuffleSeed = this.shuffleSeed + 1000;
-        
-        this.prepareVocabularyTest();
-        this.loadVocabularyTest();
-        
-        const resultsContainer = document.getElementById('testResults');
-        resultsContainer.style.display = 'none';
-        
-        const submitBtn = document.getElementById('submitTestBtn');
-        if (submitBtn) {
-            submitBtn.style.display = 'inline-flex';
-            submitBtn.disabled = true;
-        }
-        
-        const continueBtn = document.getElementById('continueToReadingBtn');
-        if (continueBtn) {
-            continueBtn.style.display = 'none';
-        }
-        
-        const retryBtn = document.querySelector('.btn-warning');
-        if (retryBtn) {
-            retryBtn.remove();
-        }
-    }
-
-    // === NUEVA FUNCIONALIDAD FASE 3: LECTURA CON PDF ===
-    
-    async initPdfViewer() {
-        console.log('📄 Inicializando PDF viewer - FASE 3 (IFRAME OPTIMIZADO)...');
-        
-        try {
-            // Construir URL del PDF en Supabase Storage
-            const pdfUrl = this.buildSupabaseStorageUrl(this.currentLecture.pdf_path);
-            console.log('🔗 URL del PDF:', pdfUrl);
-            
-            // Verificar si el PDF existe
-            const pdfExists = await this.checkPdfExists(pdfUrl);
-            
-            if (pdfExists) {
-                console.log('✅ PDF encontrado en Supabase, cargando con iframe...');
-                await this.loadPdfIntoViewer(pdfUrl);
-            } else {
-                console.warn('⚠️ PDF no encontrado en Supabase, usando PDF de prueba');
-                await this.loadFallbackPdf();
-            }
-            
-        } catch (error) {
-            console.error('❌ Error inicializando PDF viewer:', error);
-            await this.loadFallbackPdf();
-        }
-    }
-
-    buildSupabaseStorageUrl(pdfPath) {
-        const baseUrl = SUPABASE_CONFIG.url;
-        return `${baseUrl}/storage/v1/object/public/${pdfPath}`;
-    }
-
-    async checkPdfExists(url) {
-        try {
-            const response = await fetch(url, { method: 'HEAD' });
-            return response.ok;
-        } catch (error) {
-            console.error('Error verificando PDF:', error);
-            return false;
-        }
-    }
-
-    async loadPdfIntoViewer(pdfUrl) {
-        console.log('📂 Cargando PDF en el viewer (IFRAME)...');
-        
-        const pdfFrame = document.getElementById('pdfFrame');
-        const pdfLoading = document.getElementById('pdfLoading');
-        
-        if (!pdfFrame || !pdfLoading) {
-            console.error('❌ Elementos del PDF viewer no encontrados');
-            return;
-        }
-        
-        // Configurar iframe
-        pdfFrame.src = pdfUrl;
-        
-        pdfFrame.onload = () => {
-            console.log('✅ PDF cargado exitosamente en iframe');
-            pdfLoading.style.display = 'none';
-            pdfFrame.style.display = 'block';
-            this.pdfLoaded = true;
-            
-            // Aplicar zoom actual si existe
-            this.applyZoom();
-        };
-        
-        pdfFrame.onerror = () => {
-            console.error('❌ Error cargando PDF en iframe');
-            this.showPdfError();
-        };
-        
-        // Timeout de seguridad (8 segundos)
-        setTimeout(() => {
-            if (!this.pdfLoaded) {
-                console.warn('⚠️ Timeout cargando PDF, intentando alternativa...');
-                this.loadPdfWithPdfJs(pdfUrl);
-            }
-        }, 8000);
-    }
-
-    async loadFallbackPdf() {
-        console.log('🔄 Cargando PDF de prueba...');
-        
-        // URL de un PDF de prueba público
-        const fallbackUrl = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
-        
-        try {
-            await this.loadPdfIntoViewer(fallbackUrl);
-        } catch (error) {
-            console.error('❌ Error incluso con PDF de prueba:', error);
-            this.showPdfError();
-        }
-    }
-
-    // === FUNCIÓN ALTERNATIVA: PDF.js VIEWER ===
-    async loadPdfWithPdfJs(pdfUrl) {
-        console.log('📂 Cargando PDF con PDF.js...');
-        
-        const pdfFrame = document.getElementById('pdfFrame');
-        const pdfLoading = document.getElementById('pdfLoading');
-        
-        // Crear viewer con PDF.js
-        const viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`;
-        
-        pdfFrame.src = viewerUrl;
-        
-        pdfFrame.onload = () => {
-            console.log('✅ PDF cargado con PDF.js');
-            pdfLoading.style.display = 'none';
-            pdfFrame.style.display = 'block';
-            this.pdfLoaded = true;
-        };
-        
-        // Timeout de seguridad
-        setTimeout(() => {
-            if (!this.pdfLoaded) {
-                console.warn('⚠️ PDF.js timeout, mostrando enlace directo...');
-                this.showDirectPdfLink(pdfUrl);
-            }
-        }, 6000);
-    }
-
-    // === FUNCIÓN DE RESPALDO: ENLACE DIRECTO ===
-    showDirectPdfLink(pdfUrl) {
-        console.log('📂 Mostrando enlace directo al PDF...');
-        
-        const pdfContent = document.getElementById('pdfContent');
-        const pdfLoading = document.getElementById('pdfLoading');
-        
-        pdfLoading.style.display = 'none';
-        
-        pdfContent.innerHTML = `
-            <div style="text-align: center; padding: var(--space-8); background: linear-gradient(135deg, var(--info-50), var(--primary-50)); border-radius: var(--radius-xl);">
-                <div style="font-size: 4rem; margin-bottom: var(--space-4);">📖</div>
-                <h3 style="color: var(--primary-700); margin-bottom: var(--space-4);">PDF Listo para Lectura</h3>
-                <p style="color: var(--gray-600); margin-bottom: var(--space-6);">
-                    El PDF "${this.currentLecture.titulo}" está disponible. 
-                    Ábrelo en una nueva ventana para una mejor experiencia de lectura.
-                </p>
-                <a href="${pdfUrl}" target="_blank" style="
-                    background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
-                    color: white;
-                    padding: var(--space-4) var(--space-6);
-                    border-radius: var(--radius-lg);
-                    text-decoration: none;
-                    font-weight: 600;
-                    display: inline-flex;
-                    align-items: center;
-                    gap: var(--space-2);
-                    margin: var(--space-2);
-                    transition: var(--transition-fast);
-                " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                    <span>📄</span>
-                    <span>Abrir PDF en Nueva Ventana</span>
-                </a>
-                <button onclick="mlcModule.loadPdfWithPdfJs('${pdfUrl}')" style="
-                    background: linear-gradient(135deg, var(--success-600), var(--success-500));
-                    color: white;
-                    border: none;
-                    padding: var(--space-4) var(--space-6);
-                    border-radius: var(--radius-lg);
-                    font-weight: 600;
-                    cursor: pointer;
-                    display: inline-flex;
-                    align-items: center;
-                    gap: var(--space-2);
-                    margin: var(--space-2);
-                    transition: var(--transition-fast);
-                " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                    <span>🔄</span>
-                    <span>Intentar con PDF.js</span>
-                </button>
-            </div>
-        `;
-        
-        this.pdfLoaded = true;
-    }
-
-    showPdfError() {
-        const pdfContent = document.getElementById('pdfContent');
-        if (!pdfContent) return;
-        
-        pdfContent.innerHTML = `
-            <div class="pdf-error">
-                <h3>❌ Error cargando PDF</h3>
-                <p>No se pudo cargar el documento PDF desde Supabase Storage.</p>
-                <p style="font-size: var(--text-sm); margin-top: var(--space-2);">
-                    Ruta esperada: ${this.currentLecture.pdf_path}
-                </p>
-                <div style="margin-top: var(--space-4); display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="mlcModule.retryPdfLoad()" style="margin: 0;">
-                        🔄 Reintentar
-                    </button>
-                    <button class="btn btn-secondary" onclick="mlcModule.loadPdfWithPdfJs('${this.buildSupabaseStorageUrl(this.currentLecture.pdf_path)}')" style="margin: 0;">
-                        📄 Usar PDF.js
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-
-    async retryPdfLoad() {
-        console.log('🔄 Reintentando carga de PDF...');
-        
-        // Resetear estado
-        this.pdfLoaded = false;
-        
-        // Mostrar loading nuevamente
-        const pdfContent = document.getElementById('pdfContent');
-        if (pdfContent) {
-            pdfContent.innerHTML = `
-                <div class="pdf-loading" id="pdfLoading">
-                    <div class="loading-spinner"></div>
-                    <p>Reintentando carga de PDF...</p>
-                </div>
-                <iframe id="pdfFrame" class="pdf-embed" style="display: none;" allowfullscreen></iframe>
-            `;
-        }
-        
-        // Intentar cargar nuevamente
-        await this.initPdfViewer();
-    }
-
-    // === CRONÓMETRO Y VELOCIDAD ===
-    startReadingTimer() {
-        console.log('⏱️ Iniciando cronómetro de lectura...');
-        
-        this.readingStartTime = Date.now();
-        
-        this.readingTimer = setInterval(() => {
-            this.updateTimerDisplay();
-            this.updateSpeedDisplay();
-        }, 1000);
-        
-        console.log('✅ Cronómetro iniciado');
-    }
-
-    stopReadingTimer() {
-        if (this.readingTimer) {
-            clearInterval(this.readingTimer);
-            this.readingTimer = null;
-            this.readingEndTime = Date.now();
-            console.log('⏹️ Cronómetro detenido');
-        }
-    }
-
-    updateTimerDisplay() {
-        if (!this.readingStartTime) return;
-        
-        const elapsedMs = Date.now() - this.readingStartTime;
-        const formatted = this.formatTime(elapsedMs);
-        
-        const timerEl = document.getElementById('timerDisplay');
-        if (timerEl) {
-            timerEl.textContent = formatted;
-        }
-    }
-
-    updateSpeedDisplay() {
-        if (!this.readingStartTime || !this.currentLecture) return;
-        
-        const elapsedMs = Date.now() - this.readingStartTime;
-        const elapsedMinutes = elapsedMs / 60000;
-        
-        if (elapsedMinutes > 0) {
-            const wpm = (this.currentLecture.palabras / elapsedMinutes).toFixed(1);
-            
-            const speedEl = document.getElementById('speedDisplay');
-            if (speedEl) {
-                speedEl.textContent = `${wpm} WPM`;
-            }
-        }
-    }
-
-    formatTime(milliseconds) {
-        const totalSeconds = Math.floor(milliseconds / 1000);
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-
-        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-
-    // === CONTROLES DE ZOOM ===
-    zoomIn() {
-        if (this.currentZoom < 200) {
-            this.currentZoom += 25;
-            this.applyZoom();
-            console.log(`🔍 Zoom aumentado a ${this.currentZoom}%`);
-        }
-    }
-
-    zoomOut() {
-        if (this.currentZoom > 50) {
-            this.currentZoom -= 25;
-            this.applyZoom();
-            console.log(`🔍 Zoom reducido a ${this.currentZoom}%`);
-        }
-    }
-
-    applyZoom() {
-        const pdfFrame = document.getElementById('pdfFrame');
-        const zoomLevel = document.getElementById('zoomLevel');
-        
-        if (pdfFrame) {
-            pdfFrame.style.transform = `scale(${this.currentZoom / 100})`;
-            pdfFrame.style.transformOrigin = 'top left';
-            
-            // Ajustar el contenedor para el zoom
-            const pdfContent = document.getElementById('pdfContent');
-            if (pdfContent) {
-                const scale = this.currentZoom / 100;
-                pdfContent.style.height = `${600 * scale}px`;
-                pdfContent.style.overflow = scale > 1 ? 'auto' : 'hidden';
-            }
-        }
-        
-        if (zoomLevel) {
-            zoomLevel.textContent = `${this.currentZoom}%`;
-        }
-    }
-
-    // === CONTROLES DE PANTALLA ===
-    toggleFullscreen() {
-        const container = document.getElementById('pdfViewerContainer');
-        const btn = document.getElementById('fullscreenBtn');
-        
-        if (!container || !btn) return;
-        
-        if (!this.isFullscreen) {
-            container.classList.add('fullscreen');
-            btn.innerHTML = '<span>🗗</span><span>Salir</span>';
-            this.isFullscreen = true;
-            console.log('📺 Pantalla completa activada');
-        } else {
-            container.classList.remove('fullscreen');
-            btn.innerHTML = '<span>⛶</span><span>Pantalla Completa</span>';
-            this.isFullscreen = false;
-            console.log('📺 Pantalla completa desactivada');
-        }
-    }
-
-    minimizePdfViewer() {
-        const container = document.getElementById('pdfViewerContainer');
-        const btn = document.getElementById('minimizeBtn');
-        
-        if (!container || !btn) return;
-        
-        if (!this.isMinimized) {
-            container.classList.add('minimized');
-            btn.innerHTML = '<span>📄</span><span>Restaurar</span>';
-            this.isMinimized = true;
-            console.log('📦 PDF minimizado');
-        } else {
-            container.classList.remove('minimized');
-            btn.innerHTML = '<span>📦</span><span>Minimizar</span>';
-            this.isMinimized = false;
-            console.log('📄 PDF restaurado');
-        }
-    }
-
-    // === FINALIZAR LECTURA ===
-    finishReading() {
-        if (this.readingCompleted) {
-            console.log('⚠️ Lectura ya completada');
-            return;
-        }
-        
-        console.log('✅ Finalizando lectura...');
-        
-        // Detener cronómetro
-        this.stopReadingTimer();
-        
-        // Calcular métricas finales
-        const elapsedMs = this.readingEndTime - this.readingStartTime;
-        const elapsedMinutes = elapsedMs / 60000;
-        const wpm = this.currentLecture ? (this.currentLecture.palabras / elapsedMinutes).toFixed(1) : 0;
-        
-        console.log('📊 Métricas de lectura:');
-        console.log(`- Tiempo: ${this.formatTime(elapsedMs)}`);
-        console.log(`- Palabras: ${this.currentLecture?.palabras || 0}`);
-        console.log(`- WPM: ${wpm}`);
-        
-        // Guardar datos para el siguiente paso
-        sessionStorage.setItem('reading_time_ms', elapsedMs.toString());
-        sessionStorage.setItem('reading_wpm', wpm.toString());
-        
-        // Marcar como completado
-        this.readingCompleted = true;
-        this.stepStates.reading = 'completed';
-        this.stepStates.comprehension = 'pending';
-        
-        // Habilitar botón de continuar
-        const continueBtn = document.getElementById('continueToComprehensionBtn');
-        if (continueBtn) {
-            continueBtn.disabled = false;
-            continueBtn.style.opacity = '1';
-        }
-        
-        // Mostrar mensaje de confirmación
-        this.showReadingCompleted(elapsedMs, wpm);
-    }
-
-    showReadingCompleted(elapsedMs, wpm) {
-        const timeFormatted = this.formatTime(elapsedMs);
-        
-        // Crear modal de confirmación
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            font-family: var(--font-primary);
-        `;
-        
-        modal.innerHTML = `
-            <div style="
-                background: linear-gradient(135deg, var(--success-50), white);
-                border: 3px solid var(--success-500);
-                border-radius: var(--radius-2xl);
-                padding: var(--space-8);
-                text-align: center;
-                max-width: 500px;
-                margin: var(--space-4);
-                box-shadow: var(--shadow-xl);
-            ">
-                <div style="font-size: 3rem; margin-bottom: var(--space-4);">✅</div>
-                <h2 style="color: var(--success-700); margin-bottom: var(--space-4); font-size: var(--text-2xl);">
-                    ¡Lectura Completada!
-                </h2>
-                <div style="background: white; padding: var(--space-4); border-radius: var(--radius-lg); margin: var(--space-4) 0; border: 1px solid var(--success-300);">
-                    <p style="margin-bottom: var(--space-2);"><strong>Tiempo de lectura:</strong> ${timeFormatted}</p>
-                    <p style="margin-bottom: var(--space-2);"><strong>Palabras leídas:</strong> ${this.currentLecture?.palabras || 0}</p>
-                    <p style="margin-bottom: 0;"><strong>Velocidad:</strong> ${wpm} palabras por minuto</p>
-                </div>
-                <p style="color: var(--gray-600); margin-bottom: var(--space-6);">
-                    Ahora puedes continuar al test de comprensión lectora.
-                </p>
-                <button onclick="mlcModule.closeModal()" style="
-                    background: linear-gradient(135deg, var(--success-600), var(--success-500));
-                    color: white;
-                    border: none;
-                    padding: var(--space-3) var(--space-6);
-                    border-radius: var(--radius-lg);
-                    font-size: var(--text-base);
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: var(--transition-fast);
-                ">
-                    Continuar
-                </button>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Guardar referencia al modal para poder cerrarlo
-        this.currentModal = modal;
-    }
-
-    closeModal() {
-        if (this.currentModal) {
-            document.body.removeChild(this.currentModal);
-            this.currentModal = null;
-        }
-    }
-
-    // === NAVEGACIÓN ENTRE PASOS CON GUARDAS ===
-    goToStep(stepNumber) {
-        console.log(`📍 Navegando al paso ${stepNumber}`);
-        
-        if (stepNumber < 1 || stepNumber > 4) {
-            console.error('❌ Número de paso inválido:', stepNumber);
-            return;
-        }
-
-        if (!this.canAccessStep(stepNumber)) {
-            console.warn(`🚫 Acceso denegado al paso ${stepNumber}`);
-            this.showAccessDeniedMessage(stepNumber);
-            return;
-        }
-
-        this.currentStep = stepNumber;
-        
-        const sections = document.querySelectorAll('.step-section');
-        sections.forEach(section => {
-            section.classList.remove('active');
-        });
-        
-        const sectionIds = [
-            '',
-            'vocabularySection',
-            'testVocabularySection', 
-            'readingSection',
-            'comprehensionSection'
-        ];
-        
-        const targetSection = document.getElementById(sectionIds[stepNumber]);
-        if (targetSection) {
-            targetSection.classList.add('active');
-        }
-        
-        this.updateProgress();
-        this.executeStepActions(stepNumber);
-    }
-
-    canAccessStep(stepNumber) {
-        console.log(`🔍 Verificando acceso al paso ${stepNumber}...`);
-        this.logCurrentStates();
-        
-        let canAccess = false;
-        
-        switch(stepNumber) {
-            case 1:
-                canAccess = true;
-                break;
-            case 2:
-                canAccess = this.stepStates.vocabulary === 'completed';
-                console.log(`📝 Paso 2 - Vocabulario completado? ${canAccess}`);
-                break;
-            case 3:
-                canAccess = this.stepStates.testVocabulary === 'completed';
-                console.log(`📖 Paso 3 - Test completado? ${canAccess}`);
-                break;
-            case 4:
-                canAccess = this.stepStates.reading === 'completed';
-                console.log(`🧠 Paso 4 - Lectura completada? ${canAccess}`);
-                break;
-            default:
-                canAccess = false;
-        }
-        
-        console.log(`${canAccess ? '✅' : '❌'} Acceso al paso ${stepNumber}: ${canAccess ? 'PERMITIDO' : 'DENEGADO'}`);
-        return canAccess;
-    }
-
-    logCurrentStates() {
-        console.log('🔍 ESTADO ACTUAL DE PASOS:');
-        console.log('- Vocabulario:', this.stepStates.vocabulary);
-        console.log('- Test Vocabulario:', this.stepStates.testVocabulary);
-        console.log('- Lectura:', this.stepStates.reading);
-        console.log('- Comprensión:', this.stepStates.comprehension);
-    }
-
-    showAccessDeniedMessage(stepNumber) {
-        const stepNames = ['', 'Vocabulario', 'Test de Vocabulario', 'Lectura', 'Comprensión'];
-        alert(`⚠️ Debes completar el paso anterior antes de acceder a "${stepNames[stepNumber]}"`);
-    }
-
-    executeStepActions(stepNumber) {
-        switch(stepNumber) {
-            case 1:
-                console.log('📖 Activando estudio de vocabulario');
-                if (this.stepStates.vocabulary !== 'completed') {
-                    this.stepStates.vocabulary = 'active';
-                }
-                break;
-            case 2:
-                console.log('📝 Activando test de vocabulario');
-                if (this.stepStates.testVocabulary !== 'completed') {
-                    this.stepStates.testVocabulary = 'active';
-                }
-                this.loadVocabularyTest();
-                break;
-            case 3:
-                console.log('⏱️ Activando lectura con cronómetro - FASE 3');
-                if (this.stepStates.reading !== 'completed') {
-                    this.stepStates.reading = 'active';
-                }
-                // Inicializar PDF viewer y cronómetro
-                this.initPdfViewer();
-                this.startReadingTimer();
-                break;
-            case 4:
-                console.log('🧠 Activando test de comprensión');
-                if (this.stepStates.comprehension !== 'completed') {
-                    this.stepStates.comprehension = 'active';
-                }
-                this.stopReadingTimer();
-                break;
-        }
-        
-        this.updateStepIndicators();
-    }
-
-    // === ACTUALIZACIÓN DE INTERFAZ ===
-    updateProgress() {
-        const progressFill = document.getElementById('progressFill');
-        if (progressFill) {
-            const percentage = (this.currentStep / 4) * 100;
-            progressFill.style.width = `${percentage}%`;
-        }
-    }
-
-    updateStepIndicators() {
-        for (let i = 1; i <= 4; i++) {
-            const stepEl = document.getElementById(`step${i}Progress`);
-            if (stepEl) {
-                stepEl.classList.remove('active', 'completed');
-                
-                if (i < this.currentStep) {
-                    stepEl.classList.add('completed');
-                } else if (i === this.currentStep) {
-                    stepEl.classList.add('active');
-                }
-            }
-        }
-    }
-
-    // === FINALIZACIÓN ===
-    finishMLC() {
-        console.log('🎉 Finalizando módulo MLC FASE 3...');
-        
-        const elapsedMs = this.readingEndTime - this.readingStartTime;
-        const words = this.currentLecture ? this.currentLecture.palabras : 0;
-        const wpm = words > 0 ? (words * 60000) / elapsedMs : 0;
-        
-        console.log('📊 Métricas calculadas:');
-        console.log(`- Tiempo: ${elapsedMs}ms`);
-        console.log(`- Palabras: ${words}`);
-        console.log(`- WPM: ${wpm.toFixed(1)}`);
-        
-        alert(`🎉 ¡Módulo MLC FASE 3 completado!\n\n📚 Vocabulario: ✅ Completado\n📝 Test: ✅ ${this.vocabularyTestData.length}/${this.vocabularyTestData.length}\n📄 Lectura: ✅ PDF embebido funcional\n⏱️ Tiempo de lectura: ${this.formatTime(elapsedMs)}\n📈 Velocidad: ${wpm.toFixed(1)} WPM\n🗄️ Lectura: "${this.currentLecture.titulo}"\n\n(FASE 4 próximamente)`);
-        
-        this.redirectToDashboard();
-    }
-
-    // === NAVEGACIÓN ===
-    redirectToDashboard() {
-        console.log('🔄 Redirigiendo al dashboard...');
-        window.location.href = 'dashboard-estudiante.html';
-    }
-
-    // === UTILIDADES ===
-    showError(message) {
-        console.error('❌', message);
-        alert(`Error: ${message}`);
-    }
-
-    showSuccess(message) {
-        console.log('✅', message);
-    }
-
-    formatDate(date) {
-        return new Date(date).toLocaleDateString('es-CO', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: 'America/Bogota'
-        });
-    }
+// Usuario
+function getUserFromSession(){ try{const raw=localStorage.getItem('tsp_user'); return raw?JSON.parse(raw):null;}catch{ return null; } }
+function setStudentHeader(){
+  const n = state.user ? `${state.user.nombres||''} ${state.user.apellidos||''}`.trim() : 'Estudiante';
+  byId('studentName').textContent = n || 'Estudiante';
 }
 
-// === FUNCIONES GLOBALES ===
-let mlcModule = null;
-
-function goToStep(stepNumber) {
-    if (mlcModule) {
-        mlcModule.goToStep(stepNumber);
-    } else {
-        console.error('❌ Módulo MLC no inicializado');
-    }
+// Datos
+async function fetchActiveLectureForUser(){
+  const grado = state.user?.grado || state.user?.grupo_grado || 3;
+  const {data,error}=await sb.from('lecturas').select('*')
+    .lte('grado_minimo',grado).gte('grado_maximo',grado).eq('activo',true).limit(1);
+  if(error) throw error;
+  if(!data||!data[0]) throw new Error('No hay lecturas activas para tu grado');
+  return data[0];
+}
+async function getPdfUrl(lecture){
+  const path=lecture?.pdf_path||STORAGE_FALLBACK_PATH;
+  try{
+    const {data,error}=await sb.storage.from(STORAGE_BUCKET).createSignedUrl(path,3600);
+    if(error) throw error;
+    return data.signedUrl;
+  }catch{
+    const {data}=sb.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+    return data.publicUrl;
+  }
 }
 
-function selectVocabularyAnswer(questionId, answer) {
-    if (mlcModule) {
-        mlcModule.selectVocabularyAnswer(questionId, answer);
-    } else {
-        console.error('❌ Módulo MLC no inicializado');
-    }
+// Paso 1
+function renderVocabList(){
+  const cont=byId('vocabList'); cont.innerHTML='';
+  (state.lecture?.vocabulario?.items||[]).forEach(it=>{
+    const d=document.createElement('div'); d.className='vocab-item';
+    d.innerHTML=`<strong>${it.indice}. ${it.termino}</strong><br/><span>${it.definicion}</span>`;
+    cont.appendChild(d);
+  });
 }
 
-function submitVocabularyTest() {
-    if (mlcModule) {
-        mlcModule.submitVocabularyTest();
-    } else {
-        console.error('❌ Módulo MLC no inicializado');
-    }
+// Paso 2 (test vocab)
+function renderVocabTest(currentSeed){
+  const wrap=byId('vocabTest'); wrap.innerHTML=''; state.vocabAnswers={};
+  const items=state.lecture?.vocabulario?.items||[];
+  items.forEach((q,i)=>{
+    const letters=['A','B','C','D']; const shuffled=seededShuffle(letters,(currentSeed??state.seed)+i);
+    const correctKey=normKey(q.respuesta_correcta);
+    const div=document.createElement('div'); div.className='q';
+    div.innerHTML=`<div><strong>${i+1}. ${q.pregunta || ('Significado de '+q.termino)}</strong></div>`;
+    const optsDiv=document.createElement('div'); optsDiv.className='opts';
+    shuffled.forEach((L,idx)=>{
+      const id=`v_${i}_${idx}`;
+      const opt=document.createElement('div'); opt.className='opt'; opt.dataset.key=L; opt.setAttribute('role','radio'); opt.setAttribute('tabindex','0');
+      opt.innerHTML=`<input id="${id}" type="radio" name="vocab_${i}" /><label for="${id}"><strong>${L}.</strong> ${q.opciones[L]}</label>`;
+      const mark=()=>{ [...optsDiv.children].forEach(c=>c.classList.remove('selected')); opt.classList.add('selected'); const input=opt.querySelector('input'); if(input) input.checked=true; state.vocabAnswers[i]=L; checkVocabFilled(); };
+      opt.addEventListener('click',mark); opt.addEventListener('keydown',ev=>{ if(ev.key==='Enter'||ev.key===' '){ev.preventDefault(); mark();} });
+      optsDiv.appendChild(opt);
+    });
+    div.appendChild(optsDiv); div.dataset.correct=correctKey; wrap.appendChild(div);
+  });
+}
+function checkVocabFilled(){ const total=(state.lecture?.vocabulario?.items||[]).length; byId('btnSubmitVocab').disabled = Object.keys(state.vocabAnswers).length!==total; }
+function gradeVocabTest(){
+  let ok=0; const qs=[...document.querySelectorAll('#vocabTest .q')];
+  qs.forEach((div,i)=>{
+    const correct=normKey(div.dataset.correct); const marked=normKey(state.vocabAnswers[i]);
+    const opts=[...div.querySelectorAll('.opt')];
+    opts.forEach(o=>{ if(normKey(o.dataset.key)===correct) o.classList.add('correct'); if(marked && normKey(o.dataset.key)===marked && marked!==correct) o.classList.add('incorrect'); o.style.pointerEvents='none'; });
+    if(marked===correct) ok++;
+  }); return ok;
+}
+function resetVocabTest({reshuffle}){ byId('btnSubmitVocab').disabled=true; byId('vocabScore').style.display='none'; byId('vocabScore').textContent=''; byId('gateToReading').style.display='none'; byId('retryVocab').style.display='none'; if(reshuffle) state.seed=(Date.now() ^ Math.floor(Math.random()*0xffffffff))>>>0; renderVocabTest(state.seed); }
+
+// Paso 3
+function startTimer(){ if(state._timer) return; state.readingStartedAt=Date.now(); state._timer=setInterval(()=>{ const elapsed=state.readingAccumMs+(Date.now()-state.readingStartedAt); byId('timer').textContent=fmtTime(elapsed); },200); }
+function pauseTimer(){ if(!state._timer) return; state.readingAccumMs+=Date.now()-state.readingStartedAt; clearInterval(state._timer); state._timer=null; }
+
+// Paso 4 (comprensión)
+function renderComprension(){
+  const cont=byId('comprension'); cont.innerHTML=''; state.compAnswers={};
+  const preguntas=state.lecture?.preguntas_tc?.preguntas||[];
+  preguntas.forEach((p,idx)=>{
+    const q=document.createElement('div'); q.className='q';
+    q.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+      <div><strong>${p.indice||idx+1}. ${p.pregunta}</strong></div>
+      ${p.orientacion?`<div class="orientation">${p.orientacion}</div>`:''}
+    </div>`;
+    const optsDiv=document.createElement('div'); optsDiv.className='opts';
+    const letters=['A','B','C','D']; const shuffled=seededShuffle(letters,state.seed+100+idx); const correctKey=normKey(p.respuesta_correcta);
+    shuffled.forEach((L,j)=>{ const id=`c_${idx}_${j}`; const opt=document.createElement('div'); opt.className='opt'; opt.dataset.key=L; opt.setAttribute('role','radio'); opt.setAttribute('tabindex','0'); opt.innerHTML=`<input id="${id}" type="radio" name="comp_${idx}" /><label for="${id}"><strong>${L}.</strong> ${p.opciones[L]}</label>`; const mark=()=>{ [...optsDiv.children].forEach(c=>c.classList.remove('selected')); opt.classList.add('selected'); const input=opt.querySelector('input'); if(input) input.checked=true; state.compAnswers[idx]=L; checkComprFilled(); }; opt.addEventListener('click',mark); opt.addEventListener('keydown',ev=>{ if(ev.key==='Enter'||ev.key===' '){ev.preventDefault(); mark();} }); optsDiv.appendChild(opt); });
+    const fb=document.createElement('div'); fb.className='feedback'; fb.id=`fb_${idx}`; q.appendChild(optsDiv); q.appendChild(fb); q.dataset.correct=correctKey; q.dataset.fbText=p.retroalimentacion||''; cont.appendChild(q);
+  });
+}
+function checkComprFilled(){ const total=(state.lecture?.preguntas_tc?.preguntas||[]).length; byId('btnSubmitComprension').disabled = Object.keys(state.compAnswers).length!==total; }
+function gradeComprension(){
+  const qs=[...document.querySelectorAll('#comprension .q')]; let ok=0; const detail=[];
+  qs.forEach((div,i)=>{ const correct=normKey(div.dataset.correct); const marked=normKey(state.compAnswers[i]); const opts=[...div.querySelectorAll('.opt')];
+    opts.forEach(o=>{ if(normKey(o.dataset.key)===correct) o.classList.add('correct'); if(marked && normKey(o.dataset.key)===marked && marked!==correct) o.classList.add('incorrect'); o.style.pointerEvents='none'; });
+    const fb=byId(`fb_${i}`); const okItem=marked===correct;
+    if(fb){ fb.style.marginTop='8px'; fb.style.padding='8px'; fb.style.borderRadius='10px'; fb.style.border='1px solid '+(okItem?'rgba(16,185,129,.45)':'rgba(239,68,68,.45)'); fb.style.background=okItem?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)'; fb.textContent=(okItem?'¡Correcto! ':'Incorrecto. ')+(div.dataset.fbText||''); }
+    if(okItem) ok++; detail.push({indice:i+1,respuesta_marcada:marked,respuesta_correcta:correct,es_correcta:okItem});
+  });
+  return {ok,total:qs.length,detail};
 }
 
-function finishReading() {
-    if (mlcModule) {
-        mlcModule.finishReading();
-    } else {
-        console.error('❌ Módulo MLC no inicializado');
-    }
+// Persistencia (no bloquea UI)
+async function saveResultados({ tiempoMs, aciertos, total, palabras }){
+  const wpm = (palabras * 60000) / (tiempoMs || 1);
+  const compr = (aciertos / (total || 1)) * 100;
+  const ve = wpm * (compr / 100);
+  const payload = {
+    estudiante_id: state.user?.id || null,
+    lectura_id: state.lecture?.id || null,
+    titulo: state.lecture?.titulo || '',
+    palabras,
+    tiempo_lectura_ms: Math.round(tiempoMs),
+    palabras_por_minuto: Math.round(wpm * 100) / 100,
+    respuestas_tc: { preguntas: state.compAnswersJson?.preguntas || [] },
+    aciertos_tc: aciertos,
+    total_preguntas_tc: total,
+    porcentaje_comprension: Math.round(compr * 100) / 100,
+    velocidad_efectiva: Math.round(ve * 100) / 100,
+    session_date: new Date().toISOString(),
+  };
+  // Guarda en localStorage para el dashboard SIEMPRE
+  try { localStorage.setItem('tsp_last_result', JSON.stringify(payload)); } catch {}
+  // Intenta guardar en Supabase
+  try{
+    const {data,error}=await sb.from('resultados_mlc').insert(payload).select();
+    if(error) throw error;
+    return data && data[0] ? data[0] : payload;
+  }catch(err){
+    console.warn('No se pudo guardar en Supabase (mostramos resultados locales):', err);
+    return payload;
+  }
 }
 
-function finishMLC() {
-    if (mlcModule) {
-        mlcModule.finishMLC();
-    } else {
-        console.error('❌ Módulo MLC no inicializado');
-    }
+// Init
+async function init(){
+  state.user = getUserFromSession() || { id:null, nombres:'Estudiante', apellidos:'', grado:3 };
+  setStudentHeader();
+  state.seed = Date.now()>>>0;
+
+  state.lecture = await fetchActiveLectureForUser();
+  const pdfUrl = await getPdfUrl(state.lecture);
+
+  const autor = state.lecture.autor || 'Autor';
+  const palabras = state.lecture.palabras || 0;
+  const gradoStr = `Grado ${state.user?.grado ?? '-'}`;
+
+  byId('readingTitleS1').textContent = state.lecture.titulo || 'Lectura';
+  byId('readingMetaS1').textContent  = `${autor} · ${palabras} palabras · ${gradoStr}`;
+  byId('readingTitle').textContent   = state.lecture.titulo || 'Lectura';
+  byId('readingMeta').textContent    = `${autor} · ${palabras} palabras`;
+  byId('pdfFrame').src = pdfUrl;
+
+  renderVocabList(); renderVocabTest(state.seed); renderComprension();
+  goTo(1);
 }
 
-// === FUNCIONES ESPECÍFICAS DE FASE 3 ===
-function zoomIn() {
-    if (mlcModule) {
-        mlcModule.zoomIn();
-    }
-}
+// Flujo
+byId('btnNextToVocabTest').onclick = async () => {
+  if(state.vocabPassed){
+    if(state.fromStep==='reading'){ await ensureExitFullscreen(); goTo(3); startTimer(); }
+    else if(state.fromStep==='comprension'){ await ensureExitFullscreen(); goTo(4); }
+    else { goTo(3); startTimer(); }
+  }else{ goTo(2); }
+};
 
-function zoomOut() {
-    if (mlcModule) {
-        mlcModule.zoomOut();
-    }
-}
+// Test vocab
+byId('vocabTest').addEventListener('change', checkVocabFilled);
+byId('btnSubmitVocab').onclick = () => {
+  const ok = gradeVocabTest();
+  const total = (state.lecture?.vocabulario?.items||[]).length || 10;
+  const score = byId('vocabScore'); score.textContent=`Resultado: ${ok}/${total}`; score.style.display='block';
+  if(ok===total){ state.vocabPassed=true; byId('retryVocab').style.display='none'; byId('gateToReading').style.display='block'; }
+  else{ byId('gateToReading').style.display='none'; byId('retryVocab').style.display='block'; }
+};
+byId('btnBackToVocab').onclick = ()=>{ state.reseedOnNextVocabTest=true; state.fromStep=null; goTo(1); };
+byId('btnStudyAgain').onclick = ()=>{ state.reseedOnNextVocabTest=true; state.fromStep=null; goTo(1); };
+byId('btnOpenReading').onclick = ()=>{ goTo(3); startTimer(); };
 
-function toggleFullscreen() {
-    if (mlcModule) {
-        mlcModule.toggleFullscreen();
-    }
-}
+// Lectura
+const finishRead = async ()=>{ pauseTimer(); await ensureExitFullscreen(); goTo(4); };
+const minimizeToVocab = async ()=>{ pauseTimer(); await ensureExitFullscreen(); state.fromStep='reading'; goTo(1); };
+byId('btnToggleFullRead').onclick = ()=>toggleFullscreen(byId('step3'));
+byId('btnFinishReadTop').onclick   = finishRead;
+byId('btnFinishRead').onclick      = finishRead;
+byId('btnMinimizeReadTop').onclick = minimizeToVocab;
+byId('btnMinimizeRead').onclick    = minimizeToVocab;
 
-function minimizePdfViewer() {
-    if (mlcModule) {
-        mlcModule.minimizePdfViewer();
-    }
-}
+// Comprensión
+byId('btnToggleFullComp').onclick = ()=>toggleFullscreen(byId('step4'));
+byId('btnBackToVocabFromComp').onclick = async ()=>{ await ensureExitFullscreen(); state.fromStep='comprension'; goTo(1); };
+byId('comprension').addEventListener('change', checkComprFilled);
 
-// === INICIALIZACIÓN AUTOMÁTICA ===
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🎓 DOM cargado, inicializando módulo MLC FASE 3 COMPLETA...');
-    
-    try {
-        mlcModule = new MlcModule();
-        await mlcModule.init();
-    } catch (error) {
-        console.error('❌ Error fatal inicializando módulo MLC:', error);
-        alert('Error al cargar el módulo. Por favor, intenta nuevamente.');
-        
-        setTimeout(() => {
-            window.location.href = 'dashboard-estudiante.html';
-        }, 2000);
-    }
+// Registrar respuestas (mostrar MODAL)
+byId('btnSubmitComprension').onclick = async ()=>{
+  const res = gradeComprension();
+  state.compAnswersJson = { preguntas: res.detail };
+
+  const tiempoMs = state.readingAccumMs;
+  const palabras = state.lecture.palabras || 0;
+  const wpm  = Math.round((palabras * 60000) / (tiempoMs || 1));
+  const compr= Math.round((res.ok / (res.total || 1)) * 100);
+  const ve   = Math.round(wpm * (compr / 100));
+
+  // Mostrar modal (salimos de fullscreen por si acaso)
+  await ensureExitFullscreen();
+  byId('rWpm').textContent   = `${wpm}`;
+  byId('rCompr').textContent = `${compr}%`;
+  byId('rVE').textContent    = `${ve}`;
+  byId('rTime').textContent  = fmtTime(tiempoMs);
+  byId('resTitle').textContent = `${state.lecture.titulo || 'Lectura'} · ${new Date().toLocaleString()}`;
+  const modal = byId('resultsModal'); modal.hidden=false; modal.classList.add('show');
+
+  // Guardado (no bloquea)
+  await saveResultados({ tiempoMs, aciertos: res.ok, total: res.total, palabras });
+
+  // Activar botón de footer para revisión posterior
+  byId('reviewFooter').style.display = 'none';
+};
+
+// Modal botones
+byId('btnModalReview').onclick = ()=>{
+  // Cierra modal y deja visibles las correcciones en el formulario
+  const modal = byId('resultsModal');
+  modal.classList.remove('show'); modal.hidden = true;
+  // Muestra botón de ir al dashboard al final del test
+  byId('reviewFooter').style.display = 'flex';
+};
+byId('btnModalDashboard').onclick = ()=>{ /* el href ya navega; nada extra */ };
+
+// GO!
+init().catch(err=>{
+  console.error(err);
+  alert('Error inicializando MLC: '+ err.message);
 });
-
-// === EVENTOS DE TECLADO ===
-document.addEventListener('keydown', function(event) {
-    if (!mlcModule) return;
-    
-    // Escape para salir de pantalla completa
-    if (event.key === 'Escape' && mlcModule.isFullscreen) {
-        mlcModule.toggleFullscreen();
-    }
-    
-    // Ctrl/Cmd + Plus para zoom in
-    if ((event.ctrlKey || event.metaKey) && event.key === '=') {
-        event.preventDefault();
-        mlcModule.zoomIn();
-    }
-    
-    // Ctrl/Cmd + Minus para zoom out
-    if ((event.ctrlKey || event.metaKey) && event.key === '-') {
-        event.preventDefault();
-        mlcModule.zoomOut();
-    }
-});
-
-// === MANEJO DE ERRORES GLOBALES ===
-window.addEventListener('error', function(event) {
-    console.error('❌ Error global capturado:', event.error);
-});
-
-console.log('📚 Módulo MLC FASE 3 COMPLETA cargado exitosamente');
-console.log('📄 PDF embebido con controles de zoom y pantalla completa');
-console.log('⏱️ Cronómetro con cálculo de velocidad en tiempo real');
-console.log('🗄️ Integración con Supabase Storage para PDFs');
-console.log('🎯 Bucket configurado: tsp-lecturas/grado-3/ciclo-1/g3c1.pdf');
-
-// === EXPORTAR PARA DEBUGGING ===
-if (typeof window !== 'undefined') {
-    window.mlcModule = mlcModule;
-    window.goToStep = goToStep;
-    window.selectVocabularyAnswer = selectVocabularyAnswer;
-    window.submitVocabularyTest = submitVocabularyTest;
-    window.finishReading = finishReading;
-    window.finishMLC = finishMLC;
-    window.zoomIn = zoomIn;
-    window.zoomOut = zoomOut;
-    window.toggleFullscreen = toggleFullscreen;
-    window.minimizePdfViewer = minimizePdfViewer;
-}

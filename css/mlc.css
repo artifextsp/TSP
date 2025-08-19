@@ -1,0 +1,241 @@
+/* ========= MLC THEME (profesional, limpio, legible) ========= */
+
+/* 1) Tokens (sobre-escriben suaves sin romper tu dashboard) */
+:root {
+  /* Colores base */
+  --mlc-primary-700: #1e3a8a;
+  --mlc-primary-600: #1d4ed8;
+  --mlc-primary-500: #2563eb;
+  --mlc-accent-500:  #0ea5e9;
+
+  --mlc-gray-900: #0f172a;
+  --mlc-gray-800: #1e293b;
+  --mlc-gray-700: #334155;
+  --mlc-gray-600: #475569;
+  --mlc-gray-500: #64748b;
+  --mlc-gray-300: #e2e8f0;
+  --mlc-gray-200: #eef2f7;
+  --mlc-gray-100: #f8fafc;
+  --mlc-white:     #ffffff;
+
+  --mlc-success: #10b981;
+  --mlc-error:   #ef4444;
+
+  /* Tipografías y escala */
+  --mlc-font: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  --mlc-text-sm: 0.95rem;
+  --mlc-text-md: 1.05rem;
+  --mlc-text-lg: 1.25rem;
+  --mlc-text-2xl: 1.8rem;
+
+  /* Espaciado y radios */
+  --mlc-space-2: .5rem;
+  --mlc-space-3: .75rem;
+  --mlc-space-4: 1rem;
+  --mlc-space-6: 1.5rem;
+  --mlc-space-8: 2rem;
+
+  --mlc-radius-lg: 14px;
+  --mlc-radius-xl: 20px;
+
+  --mlc-shadow-sm: 0 2px 6px rgba(15,23,42,.06);
+  --mlc-shadow-lg: 0 14px 30px rgba(15,23,42,.12);
+}
+
+/* === Topbar unificado con el resto del tema === */
+.mlc-topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--mlc-white,#fff);
+  border-bottom: 1px solid var(--mlc-gray-200,#e5e7eb);
+  backdrop-filter: saturate(180%) blur(6px);
+}
+.mlc-topbar .wrap {
+  max-width: 1100px; margin: 0 auto;
+  padding: 10px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.mlc-topbar .btn.link {
+  background: transparent; border: none; padding: 6px 8px;
+  color: var(--mlc-primary-600,#1d4ed8); font-weight: 600; cursor: pointer;
+}
+.mlc-title { font-weight: 700; letter-spacing: .2px; color: var(--mlc-gray-900,#111827); }
+.mlc-user { display: inline-flex; align-items: center; gap: 8px; color: var(--mlc-gray-700,#374151); }
+.mlc-user .avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--mlc-gray-100,#f3f4f6);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: .95rem;
+  border: 1px solid var(--mlc-gray-200,#e5e7eb);
+}
+
+
+/* 2) Contenedor principal del MLC */
+.mlc-container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--mlc-space-8) var(--mlc-space-6);
+  font-family: var(--mlc-font);
+  color: var(--mlc-gray-800);
+}
+
+/* 3) Tarjetas */
+.module-card, .result-card {
+  background: var(--mlc-white);
+  border: 1px solid var(--mlc-gray-300);
+  border-radius: var(--mlc-radius-xl);
+  padding: calc(var(--mlc-space-8) - .25rem);
+  box-shadow: var(--mlc-shadow-sm);
+}
+
+/* 4) Títulos */
+.module-card h2, .result-card h2 {
+  font-size: var(--mlc-text-2xl);
+  color: var(--mlc-gray-900);
+  margin-bottom: var(--mlc-space-4);
+  letter-spacing: .2px;
+}
+
+/* 5) Barra de pasos */
+.mlc-steps {
+  display:flex; gap: var(--mlc-space-3); flex-wrap: wrap;
+  margin-bottom: var(--mlc-space-4);
+  align-items: center;
+}
+.mlc-step {
+  display:flex; align-items:center; gap:.55rem;
+  font-size: var(--mlc-text-sm);
+  color: var(--mlc-gray-600);
+}
+.mlc-step .mlc-n {
+  width: 28px; height: 28px; border-radius: 9999px;
+  background: var(--mlc-gray-300); color: var(--mlc-gray-700);
+  display:flex; align-items:center; justify-content:center; font-weight: 700;
+}
+.mlc-step.active { color: var(--mlc-primary-600); font-weight: 700; }
+.mlc-step.active .mlc-n { background: var(--mlc-primary-600); color:#fff; }
+.mlc-step.done   { color: var(--mlc-success); font-weight: 700; }
+.mlc-step.done .mlc-n { background: var(--mlc-success); color:#fff; }
+
+.mlc-progress { height: 10px; background: var(--mlc-gray-200); border-radius: 9999px; overflow: hidden; }
+.mlc-progress-bar { height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--mlc-primary-500), var(--mlc-primary-700));
+  transition: width 300ms ease-in-out;
+}
+
+/* 6) Botones */
+.btn {
+  display:inline-flex; align-items:center; gap:.6rem; font-weight:700;
+  padding: .9rem 1.2rem; border-radius: var(--mlc-radius-lg);
+  border: 1px solid var(--mlc-gray-300); background: #fff; cursor:pointer;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  font-size: var(--mlc-text-md);
+}
+.btn:hover { transform: translateY(-1px); box-shadow: var(--mlc-shadow-sm); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity:.6; cursor:not-allowed; }
+
+.btn.primary { border:none; color:#fff;
+  background: linear-gradient(135deg, var(--mlc-primary-600), var(--mlc-primary-500));
+  box-shadow: var(--mlc-shadow-sm);
+}
+.btn.secondary { background: var(--mlc-gray-100); color: var(--mlc-gray-700); }
+.btn.success { border:none; color:#fff; background: linear-gradient(135deg, #0ea5e9, #10b981); }
+
+/* 7) Vocabulario */
+.vocab-grid { display:grid; gap: var(--mlc-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: var(--mlc-space-4);
+}
+.vocab-item {
+  background: #fff; border:1px solid var(--mlc-gray-300); border-radius: var(--mlc-radius-lg);
+  padding: var(--mlc-space-4);
+}
+.vocab-item strong { color: var(--mlc-gray-900); }
+.vocab-item span { color: var(--mlc-gray-600); }
+
+/* 8) Preguntas y opciones */
+.q {
+  background:#fff; border:1px solid var(--mlc-gray-300);
+  border-radius: var(--mlc-radius-lg); padding: var(--mlc-space-4);
+  margin-bottom: var(--mlc-space-3);
+  font-size: var(--mlc-text-md);
+}
+.opts { display:grid; gap:.6rem; margin-top:.6rem }
+.opt {
+  display:flex; gap:.6rem; align-items:flex-start;
+  border:1px solid var(--mlc-gray-300); border-radius: var(--mlc-radius-lg);
+  padding:.75rem; cursor:pointer; background:#fff;
+}
+.opt.selected { outline: 2px solid var(--mlc-accent-500); }
+.opt.correct  { background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.45); }
+.opt.incorrect{ background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.45); }
+.orientation {
+  background: rgba(14,165,233,.12); border:1px solid rgba(14,165,233,.35);
+  border-radius: 10px; padding: 3px 8px; font-size: .9rem;
+}
+
+/* 9) PDF y cabecera de lectura */
+.pdf { width:100%; height:72vh;
+  border:1px solid var(--mlc-gray-300); border-radius: var(--mlc-radius-lg); background:#fff;
+}
+.reading-head { display:flex; justify-content:space-between; align-items:center; margin: 8px 0 12px; }
+#readingTitle { font-size: var(--mlc-text-lg); color: var(--mlc-gray-900); }
+#readingMeta  { font-size: var(--mlc-text-sm); color: var(--mlc-gray-600); }
+#timer { font-variant-numeric: tabular-nums; font-weight: 800; }
+
+/* 10) Métricas */
+.metrics { display:grid; gap: var(--mlc-space-4); grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); margin-top: var(--mlc-space-4); }
+.metric { background:#fff; border:1px solid var(--mlc-gray-300); border-radius: var(--mlc-radius-lg); padding: var(--mlc-space-6); text-align:center }
+.metric .v { font-size: 2rem; font-weight: 800; color: var(--mlc-primary-600); }
+
+/* 11) Dark mode (opcional) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mlc-gray-900: #e5e7eb; --mlc-gray-800:#e2e8f0; --mlc-gray-700:#cbd5e1; --mlc-gray-600:#94a3b8;
+    --mlc-gray-300:#334155; --mlc-gray-200:#1f2937; --mlc-gray-100:#0b1220; --mlc-white:#0f1629;
+  }
+  .module-card, .result-card { box-shadow: none; }
+}
+
+
+
+/* === GATING: SOLO UNA SECCIÓN VISIBLE === */
+.section { display: none; }
+.section.active { display: block; }
+
+/* Evita foco en secciones ocultas (para lector de pantalla) */
+[hidden] { display: none !important; }
+
+
+/* Mejora de accesibilidad en opciones de test */
+.q .opts .opt { 
+  display:flex; gap:10px; align-items:flex-start; 
+  padding:12px 14px; border:1px solid var(--mlc-gray-300,#e2e8f0); 
+  border-radius:12px; cursor:pointer;
+}
+.q .opts .opt input { pointer-events:none; } /* que el click se capture por todo el bloque */
+.q .opts .opt.selected { outline:2px solid var(--mlc-primary-500,#2563eb); }
+
+
+/* === Fullscreen: permitir scroll en lectura y test === */
+:fullscreen { overflow: auto !important; }
+:-webkit-full-screen { overflow: auto !important; }
+
+#step3:fullscreen, #step4:fullscreen {
+  width: 100%;
+  height: 100%;
+  overflow: auto !important;
+}
+#step3:-webkit-full-screen, #step4:-webkit-full-screen {
+  width: 100%;
+  height: 100%;
+  overflow: auto !important;
+}
+
+/* Mejora de "tap target" (por si aún no lo agregaste) */
+.q .opts .opt { 
+  display:flex; gap:10px; align-items:flex-start; 
+  padding:12px 14px; border:1px solid var(--mlc-gray-300,#e2e8f0); 
+  border-radius:12px; cursor:pointer;
+}
+.q .opts .opt input { pointer-events:none; }
+.q .opts .opt.selected { outline:2px solid var(--mlc-primary-500,#2563eb); }
