@@ -1,514 +1,434 @@
-// === TSP v2.0 - DASHBOARD ESTUDIANTE ===
+// === TSP v2.1 - DASHBOARD ESTUDIANTE ===
 // Archivo: js/dashboard-estudiante.js
+// Compatibilidad total con: js/mlc-charts.js (auto-init), localStorage/sessionStorage y Supabase v2.
+//
+// Qué hace este archivo:
+// 1) Carga y normaliza el usuario (sessionStorage['tsp_user'] o ['userProfile']); guarda compat en localStorage.
+// 2) Pinta cabecera y tarjeta de información del estudiante.
+// 3) Muestra último resultado (desde Supabase si está disponible; fallback a localStorage:tsp_last_result).
+// 4) Gestiona navegación a módulos (openModule) y logout.
+// 5) Deja listo el terreno para los gráficos: si el HTML tiene los <canvas> y Chart.js está cargado,
+//    js/mlc-charts.js se auto-inicializa al DOMContentLoaded sin que tengas que hacer nada aquí.
+//
+// Requisitos en el HTML (dashboard-estudiante.html):
+//  - Cargar Supabase JS v2 por CDN (antes de este archivo): <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+//  - Cargar Chart.js por CDN (antes de mlc-charts.js): <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+//  - Incluir <script src="../js/mlc-charts.js"></script> al final del <body> (después de este archivo).
+//  - Tener la sección de charts con 3 canvas: #chartWPM, #chartComprension, #chartVE (ver brief).
+//
+// Notas:
+//  - Este archivo no dibuja gráficos: lo hace mlc-charts.js (ya entregado). Aquí aseguramos que el usuario esté listo en sesión.
+//  - Si no hay Supabase, el dashboard sigue funcionando con datos locales.
 
-class EstudianteDashboard {
+(function(){
+  "use strict";
+
+  // ========== CONFIGURACIÓN SUPABASE ==========
+  // (idealmente mover a config.js en producción)
+  const SUPABASE_CONFIG = window.SUPABASE_CONFIG || {
+    url: 'https://kryqjsncqsopjuwymhqd.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyeXFqc25jcXNvcGp1d3ltaHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjM3MDEsImV4cCI6MjA2ODg5OTcwMX0.w5HiaFiqlFJ_3QbcprUrufsOXTDWFg1zUMl2J7kWD6Y'
+  };
+
+  // Garantizamos un cliente global reutilizable (window.supabaseClient)
+  (function ensureSupabaseClient(){
+    try{
+      if (!window.supabase) return; // la librería no está cargada; modo local
+      if (window.supabaseClient && typeof window.supabaseClient.from === "function") return;
+      window.supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+      console.log("✅ Supabase client listo (dashboard)");
+    }catch(e){
+      console.warn("⚠️ No fue posible inicializar Supabase client:", e);
+    }
+  })();
+
+  // Shorthands
+  const $ = (s)=>document.querySelector(s);
+  const $$ = (s)=>document.querySelectorAll(s);
+  const TZ = "America/Bogota";
+  const fmtDateTime = (d)=> new Date(d).toLocaleString("es-CO",{ dateStyle:"medium", timeStyle:"short", timeZone: TZ });
+  const fmtMinutes = (ms)=> (ms>0? (ms/1000/60).toFixed(2)+" min" : "0.00 min");
+
+  class EstudianteDashboard {
     constructor() {
-        this.user = null;
-        this.currentAssignment = null;
-        this.charts = {};
+      this.user = null;
+      this.currentAssignment = null;
+      this.charts = {}; // reservado (mlc-charts maneja gráficos)
     }
 
     async init() {
-        try {
-            // Obtener usuario de la sesión
-            this.user = this.getUserFromSession();
-            
-            if (!this.user) {
-                console.warn('No hay usuario en sesión, redirigiendo al login');
-                window.location.href = '../index.html';
-                return;
-            }
-
-            await this.loadUserInfo();
-            await this.loadCurrentAssignment();
-            await this.loadLastSessionResults();
-            await this.loadProgressCharts();
-            this.updateDateTime();
-
-            // Actualizar fecha/hora cada minuto
-            setInterval(() => this.updateDateTime(), 60000);
-            
-            console.log('✅ Dashboard del estudiante inicializado correctamente');
-        } catch (error) {
-            console.error('❌ Error inicializando dashboard:', error);
-            this.showError('Error al cargar el dashboard');
+      try {
+        this.user = this.getUserFromSession();
+        if (!this.user) {
+          console.warn("No hay usuario en sesión, redirigiendo al login");
+          window.location.href = "../index.html";
+          return;
         }
+
+        // Normalizamos presencia del usuario para modulos y mlc-charts
+        this.persistUserForModules(this.user);
+
+        this.paintHeader();
+        this.paintUserInfo();
+
+        await this.loadCurrentAssignment();
+        await this.loadLastSessionResults();
+
+        // Los gráficos quedan a cargo de mlc-charts.js (auto DOMContentLoaded)
+        this.updateDateTime();
+        setInterval(()=>this.updateDateTime(), 60_000);
+
+        this.wireModules();
+        const logoutBtn = $("#btnLogout");
+        if (logoutBtn) logoutBtn.addEventListener("click", this.onLogout);
+
+        console.log("✅ Dashboard del estudiante inicializado correctamente");
+      } catch (error) {
+        console.error("❌ Error inicializando dashboard:", error);
+        alert("Error al cargar el dashboard");
+      }
     }
 
+    // ----- Usuario -----
     getUserFromSession() {
-        // Obtener datos del usuario desde sessionStorage
-        const userData = sessionStorage.getItem('userProfile');
-        if (userData) {
-            return JSON.parse(userData);
-        }
-        
-        // Datos de prueba para desarrollo
-        return {
-            id: 'e123456789',
-            codigo_estudiante: 'E001002',
-            nombres: 'Juan Carlos',
-            apellidos: 'Pérez González',
-            email: 'juan.perez@ejemplo.com',
-            grado: 5,
-            seccion: 'A',
-            institucion: {
-                nombre: 'Colegio San José'
-            },
-            grupo: {
-                nombre: '5°A',
-                grado: 5
-            }
-        };
+      try{
+        // Preferimos tsp_user (compat con módulos y charts), luego userProfile
+        const raw = sessionStorage.getItem("tsp_user") || sessionStorage.getItem("userProfile");
+        if (raw) return JSON.parse(raw);
+      }catch{ /* ignore */ }
+
+      // Fallback de desarrollo
+      return {
+        id: "user-demo",
+        codigo_estudiante: "E001002",
+        nombres: "Estudiante",
+        apellidos: "Demo",
+        grado: 5,
+        seccion: "A",
+        institucion: { nombre: "Colegio San José" },
+        grupo: { nombre: "5°A", grado: 5 }
+      };
     }
 
-    loadUserInfo() {
-        // Actualizar información del usuario en la interfaz
-        document.getElementById('welcomeMessage').textContent = 
-            `Bienvenido/a ${this.user.nombres} ${this.user.apellidos}`;
-        
-        document.getElementById('studentCode').textContent = 
-            this.user.codigo_estudiante;
-        
-        document.getElementById('studentGrade').textContent = 
-            this.user.grupo ? this.user.grupo.nombre : `${this.user.grado}°${this.user.seccion}`;
-        
-        document.getElementById('studentInstitution').textContent = 
-            this.user.institucion ? this.user.institucion.nombre : 'No asignada';
+    persistUserForModules(user){
+      try {
+        // Necesario para mlc-module y mlc-charts
+        sessionStorage.setItem("tsp_user", JSON.stringify(user));
+        localStorage.setItem("tsp_user", JSON.stringify(user));
+      } catch {}
     }
 
-    async loadCurrentAssignment() {
-        try {
-            // Consultar asignación actual del estudiante
-            const { data, error } = await supabase
-                .from('asignaciones_ciclos')
-                .select(`
-                    *,
-                    ciclos (
-                        lectura_id,
-                        desafio_id,
-                        ejercicios_ids,
-                        lecturas (titulo, autor),
-                        desafios_mentales (titulo)
-                    )
-                `)
-                .eq('estudiante_id', this.user.id)
-                .eq('activo', true)
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            if (error) throw error;
-
-            if (data && data.length > 0) {
-                this.currentAssignment = data[0];
-                await this.updateModuleStatus();
-            } else {
-                this.showNoAssignmentMessage();
-            }
-        } catch (error) {
-            console.error('Error cargando asignación:', error);
-            // Fallback: mostrar módulos con estado pendiente
-            this.updateModuleStatus(true);
-        }
+    // ----- Pintado de UI -----
+    paintHeader(){
+      const welcome = $("#welcome") || $("#welcomeMessage");
+      if (welcome) welcome.textContent = `Bienvenido/a ${this.user.nombres} ${this.user.apellidos}`;
+      const today = $("#today") || $("#currentDate");
+      if (today) today.textContent = new Date().toLocaleString("es-CO",{weekday:"long", year:"numeric", month:"long", day:"numeric", hour:"2-digit", minute:"2-digit", timeZone: TZ});
     }
 
-    async updateModuleStatus(useFallback = false) {
-        if (useFallback || !this.currentAssignment) {
-            // Modo de desarrollo: mostrar módulos disponibles
-            this.updateModuleUI('mlc', false);
-            this.updateModuleUI('mdm', false);
-            this.updateModuleUI('med', false);
-            return;
-        }
+    paintUserInfo(){
+      const codeEl = $("#uCodigo") || $("#studentCode");
+      const gradeEl = $("#uGrado") || $("#studentGrade");
+      const instEl = $("#uInst") || $("#studentInstitution");
 
-        const asignacionId = this.currentAssignment.id;
-
-        // Verificar estado de cada módulo
-        const [mlcCompleted, mdmCompleted, medCompleted] = await Promise.all([
-            this.checkModuleCompletion('resultados_mlc', asignacionId),
-            this.checkModuleCompletion('resultados_mdm', asignacionId),
-            this.checkModuleCompletion('resultados_med', asignacionId)
-        ]);
-
-        // Actualizar UI
-        this.updateModuleUI('mlc', mlcCompleted);
-        this.updateModuleUI('mdm', mdmCompleted);
-        this.updateModuleUI('med', medCompleted);
+      if (codeEl) codeEl.textContent = this.user.codigo_estudiante || "—";
+      if (gradeEl) {
+        const gradoTxt = this.user.grupo ? this.user.grupo.nombre : `${this.user.grado ?? "-"}°${this.user.seccion ?? ""}`;
+        gradeEl.textContent = gradoTxt;
+      }
+      if (instEl) instEl.textContent = (this.user.institucion && this.user.institucion.nombre) ? this.user.institucion.nombre : "No asignada";
     }
 
-    async checkModuleCompletion(table, asignacionId) {
-        try {
-            const { data, error } = await supabase
-                .from(table)
-                .select('id')
-                .eq('estudiante_id', this.user.id)
-                .eq('asignacion_id', asignacionId);
-
-            return !error && data && data.length > 0;
-        } catch (error) {
-            console.error(`Error verificando completación de ${table}:`, error);
-            return false;
-        }
-    }
-
-    updateModuleUI(module, completed) {
-        const statusElement = document.getElementById(`${module}Status`);
-        const buttonElement = document.querySelector(`#${module}Module .module-btn`);
-
-        if (completed) {
-            statusElement.textContent = 'Completado';
-            statusElement.className = 'module-status completed';
-            buttonElement.textContent = 'Ver Resultados';
+    // ----- Asignación actual -----
+    async loadCurrentAssignment(){
+      const sb = window.supabaseClient;
+      if (!sb) { // modo local
+        this.updateModuleStatus(true);
+        return;
+      }
+      try{
+        const { data, error } = await sb
+          .from("asignaciones_ciclos")
+          .select(`*, ciclos ( lectura_id, desafio_id, ejercicios_ids, lecturas (titulo, autor), desafios_mentales (titulo) )`)
+          .eq("estudiante_id", this.user.id)
+          .eq("activo", true)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        if (data && data.length) {
+          this.currentAssignment = data[0];
+          await this.updateModuleStatus(false);
         } else {
-            statusElement.textContent = 'Pendiente';
-            statusElement.className = 'module-status pending';
-            buttonElement.textContent = 'Iniciar';
+          this.showNoAssignmentMessage();
         }
+      }catch(e){
+        console.error("Error cargando asignación:", e);
+        this.updateModuleStatus(true);
+      }
     }
 
-    showNoAssignmentMessage() {
-        const modulesGrid = document.querySelector('.modules-grid');
-        modulesGrid.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; padding: 2rem; background: var(--gray-50); border-radius: var(--radius-xl); border: 2px dashed var(--gray-400);">
-                <h3 style="color: var(--gray-600); margin-bottom: 1rem;">No hay ciclo de entrenamiento asignado</h3>
-                <p style="color: var(--gray-500);">Contacta a tu docente para que te asigne un ciclo de entrenamiento.</p>
-            </div>
-        `;
+    async updateModuleStatus(useFallback){
+      if (useFallback || !this.currentAssignment){
+        this.updateModuleUI("mlc", false);
+        this.updateModuleUI("mdm", false);
+        this.updateModuleUI("med", false);
+        return;
+      }
+      const asignacionId = this.currentAssignment.id;
+      const [mlcCompleted, mdmCompleted, medCompleted] = await Promise.all([
+        this.checkModuleCompletion("resultados_mlc", asignacionId),
+        this.checkModuleCompletion("resultados_mdm", asignacionId),
+        this.checkModuleCompletion("resultados_med", asignacionId)
+      ]);
+      this.updateModuleUI("mlc", mlcCompleted);
+      this.updateModuleUI("mdm", mdmCompleted);
+      this.updateModuleUI("med", medCompleted);
     }
 
-    async loadLastSessionResults() {
-        try {
-            // Cargar último resultado MLC
-            const { data: mlcData } = await supabase
-                .from('resultados_mlc')
-                .select('*, lecturas(titulo, autor)')
-                .eq('estudiante_id', this.user.id)
-                .order('created_at', { ascending: false })
-                .limit(1);
+    async checkModuleCompletion(table, asignacionId){
+      const sb = window.supabaseClient;
+      if (!sb) return !!localStorage.getItem("tsp_last_result"); // heurística local
+      try{
+        const { data, error } = await sb.from(table).select("id").eq("estudiante_id", this.user.id).eq("asignacion_id", asignacionId);
+        return !error && data && data.length > 0;
+      }catch(e){
+        console.warn(`Error verificando completación de ${table}:`, e);
+        return false;
+      }
+    }
 
-            if (mlcData && mlcData.length > 0) {
-                this.displayLastMlcResult(mlcData[0]);
-            }
+    updateModuleUI(module, completed){
+      // Soporte a ambos markups: grid accesible o cards con .module-btn
+      const pillAlt = {
+        "mlc": $("#mlcPill"),
+        "mdm": $("#mdmPill"),
+        "med": $("#medPill")
+      }[module];
 
-            // Cargar último resultado MDM
-            const { data: mdmData } = await supabase
-                .from('resultados_mdm')
-                .select('*, desafios_mentales(titulo)')
-                .eq('estudiante_id', this.user.id)
-                .order('created_at', { ascending: false })
-                .limit(1);
+      const statusElement = document.getElementById(`${module}Status`);
+      const buttonElement = document.querySelector(`#${module}Module .module-btn`);
 
-            if (mdmData && mdmData.length > 0) {
-                this.displayLastMdmResult(mdmData[0]);
-            }
+      const setAsCompleted = ()=>{
+        if (statusElement){ statusElement.textContent = "Completado"; statusElement.className = "module-status completed"; }
+        if (buttonElement) buttonElement.textContent = "Ver Resultados";
+        if (pillAlt){ pillAlt.textContent = "Completado"; pillAlt.classList.remove("in-progress"); pillAlt.classList.add("completed"); }
+      };
+      const setAsPending = ()=>{
+        if (statusElement){ statusElement.textContent = "Pendiente"; statusElement.className = "module-status pending"; }
+        if (buttonElement) buttonElement.textContent = "Iniciar";
+        if (pillAlt){ pillAlt.textContent = "Pendiente"; pillAlt.classList.remove("completed"); pillAlt.classList.add("in-progress"); }
+      };
 
-            // Cargar último resultado MED
-            const { data: medData } = await supabase
-                .from('resultados_med')
-                .select('*, ejercicios_digitales(nombre)')
-                .eq('estudiante_id', this.user.id)
-                .order('created_at', { ascending: false })
-                .limit(1);
+      completed ? setAsCompleted() : setAsPending();
+    }
 
-            if (medData && medData.length > 0) {
-                this.displayLastMedResult(medData[0]);
-            }
+    showNoAssignmentMessage(){
+      const modulesGrid = document.querySelector(".modules-grid");
+      if (!modulesGrid) return;
+      modulesGrid.innerHTML = `
+        <div style="grid-column: 1/-1; text-align: center; padding: 2rem; background: var(--gray-50); border-radius: var(--radius-xl); border: 2px dashed var(--gray-400);">
+          <h3 style="color: var(--gray-600); margin-bottom: 1rem;">No hay ciclo de entrenamiento asignado</h3>
+          <p style="color: var(--gray-500);">Contacta a tu docente para que te asigne un ciclo de entrenamiento.</p>
+        </div>`;
+    }
 
-        } catch (error) {
-            console.error('Error cargando últimos resultados:', error);
-            // Mostrar datos de ejemplo en caso de error
-            this.showSampleResults();
+    // ----- Últimos resultados -----
+    async loadLastSessionResults(){
+      const sb = window.supabaseClient;
+      if (!sb){
+        this.paintLastResultFromLocalStorage();
+        return;
+      }
+      try{
+        // MLC
+        const { data: mlcData } = await sb
+          .from("resultados_mlc")
+          .select("*, lecturas(titulo, autor)")
+          .eq("estudiante_id", this.user.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (mlcData && mlcData.length) this.displayLastMlcResult(mlcData[0]); else this.paintLastResultFromLocalStorage();
+
+        // MDM
+        const { data: mdmData } = await sb
+          .from("resultados_mdm")
+          .select("*, desafios_mentales(titulo)")
+          .eq("estudiante_id", this.user.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (mdmData && mdmData.length) this.displayLastMdmResult(mdmData[0]);
+
+        // MED
+        const { data: medData } = await sb
+          .from("resultados_med")
+          .select("*, ejercicios_digitales(nombre)")
+          .eq("estudiante_id", this.user.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (medData && medData.length) this.displayLastMedResult(medData[0]);
+      }catch(e){
+        console.error("Error cargando últimos resultados:", e);
+        this.paintLastResultFromLocalStorage();
+      }
+    }
+
+    displayLastMlcResult(result){
+      const banner = $("#lastResult");
+      if (banner) banner.classList.add("show");
+
+      const meta = $("#lastResultMeta");
+      if (meta) meta.textContent = `${(result.lecturas && result.lecturas.titulo) ? result.lecturas.titulo : (result.titulo || "Lectura")} · ${fmtDateTime(result.session_date || result.created_at || Date.now())}`;
+
+      const set = (id, v)=>{ const el = $(id); if (el) el.textContent = v; };
+      set("#lrWpm", (result.palabras_por_minuto ?? 0).toFixed(0));
+      set("#lrCompr", `${(result.porcentaje_comprension ?? 0).toFixed(0)}%`);
+      set("#lrVE", (result.velocidad_efectiva ?? 0).toFixed(0));
+      set("#lrTime", fmtMinutes(result.tiempo_lectura_ms || 0));
+
+      const box = $("#lastMlcBox") || $("#lastMlcResults");
+      if (box) {
+        box.innerHTML = `
+          <div><strong>${(result.lecturas && result.lecturas.titulo) ? result.lecturas.titulo : (result.titulo || "Lectura")}</strong></div>
+          <div class="muted">${fmtDateTime(result.session_date || result.created_at || Date.now())}</div>
+          <div class="metrics" style="margin-top:10px">
+            <div class="metric"><div class="v">${Math.round(result.palabras_por_minuto || 0)}</div><div>WPM</div></div>
+            <div class="metric"><div class="v">${Math.round(result.porcentaje_comprension || 0)}%</div><div>%</div></div>
+            <div class="metric"><div class="v">${Math.round(result.velocidad_efectiva || 0)}</div><div>VE</div></div>
+            <div class="metric"><div class="v">${fmtMinutes(result.tiempo_lectura_ms || 0)}</div><div>Tiempo</div></div>
+          </div>`;
+      }
+    }
+
+    displayLastMdmResult(result){
+      const container = $("#lastMdmResults");
+      if (!container) return;
+      container.innerHTML = `
+        <div style="margin-bottom: 0.5rem;"><strong>${result.desafios_mentales?.titulo || "Desafío"}</strong></div>
+        <div style="font-size: 0.875rem;"><span>Porcentaje Alcanzado: ${result.porcentaje_alcanzado ?? 0}%</span></div>
+        <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.5rem;">${fmtDateTime(result.session_date || result.created_at || Date.now())}</div>`;
+    }
+
+    displayLastMedResult(result){
+      const container = $("#lastMedResults");
+      if (!container) return;
+      container.innerHTML = `
+        <div style="margin-bottom: 0.5rem;"><strong>${result.ejercicios_digitales?.nombre || "Ejercicio"}</strong></div>
+        <div style="display: flex; gap: 1rem; font-size: 0.875rem;">
+          <span>Nivel: ${result.nivel_alcanzado ?? "-"}</span>
+          <span>Puntos: ${(result.puntos_obtenidos ?? 0).toLocaleString()}</span>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.5rem;">${fmtDateTime(result.session_date || result.created_at || Date.now())}</div>`;
+    }
+
+    paintLastResultFromLocalStorage(){
+      try{
+        const raw = localStorage.getItem("tsp_last_result");
+        if (!raw) return;
+        const r = JSON.parse(raw);
+
+        // Banner
+        const banner = $("#lastResult");
+        if (banner) banner.classList.add("show");
+        const meta = $("#lastResultMeta");
+        if (meta) meta.textContent = `${r.titulo || "Lectura"} · ${fmtDateTime(r.session_date || Date.now())}`;
+        const set = (id, v)=>{ const el = $(id); if (el) el.textContent = v; };
+        set("#lrWpm", Math.round(r.palabras_por_minuto || 0));
+        set("#lrCompr", `${Math.round(r.porcentaje_comprension || 0)}%`);
+        set("#lrVE", Math.round(r.velocidad_efectiva || 0));
+        set("#lrTime", fmtMinutes(r.tiempo_lectura_ms || 0));
+
+        // Card MLC
+        const box = $("#lastMlcBox") || $("#lastMlcResults");
+        if (box) {
+          box.innerHTML = `
+            <div><strong>${r.titulo || "Lectura"}</strong></div>
+            <div class="muted">${fmtDateTime(r.session_date || Date.now())}</div>
+            <div class="metrics" style="margin-top:10px">
+              <div class="metric"><div class="v">${Math.round(r.palabras_por_minuto || 0)}</div><div>WPM</div></div>
+              <div class="metric"><div class="v">${Math.round(r.porcentaje_comprension || 0)}%</div><div>%</div></div>
+              <div class="metric"><div class="v">${Math.round(r.velocidad_efectiva || 0)}</div><div>VE</div></div>
+              <div class="metric"><div class="v">${fmtMinutes(r.tiempo_lectura_ms || 0)}</div><div>Tiempo</div></div>
+            </div>`;
         }
+
+        // Actualiza pill del módulo
+        const pill = $("#mlcPill");
+        if (pill){ pill.textContent="Completado"; pill.classList.remove("in-progress"); pill.classList.add("completed"); }
+      }catch(e){
+        console.warn("No fue posible pintar resultados locales:", e);
+      }
     }
 
-    displayLastMlcResult(result) {
-        const container = document.getElementById('lastMlcResults');
-        container.innerHTML = `
-            <div style="margin-bottom: 0.5rem;">
-                <strong>${result.lecturas.titulo}</strong>
-            </div>
-            <div style="display: flex; gap: 1rem; font-size: 0.875rem; flex-wrap: wrap;">
-                <span>WPM: ${result.palabras_por_minuto.toFixed(1)}</span>
-                <span>Comprensión: ${result.porcentaje_comprension.toFixed(1)}%</span>
-                <span>V. Efectiva: ${result.velocidad_efectiva.toFixed(1)}</span>
-            </div>
-            <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.5rem;">
-                ${this.formatDate(result.session_date)}
-            </div>
-        `;
-    }
-
-    displayLastMdmResult(result) {
-        const container = document.getElementById('lastMdmResults');
-        container.innerHTML = `
-            <div style="margin-bottom: 0.5rem;">
-                <strong>${result.desafios_mentales.titulo}</strong>
-            </div>
-            <div style="font-size: 0.875rem;">
-                <span>Porcentaje Alcanzado: ${result.porcentaje_alcanzado}%</span>
-            </div>
-            <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.5rem;">
-                ${this.formatDate(result.session_date)}
-            </div>
-        `;
-    }
-
-    displayLastMedResult(result) {
-        const container = document.getElementById('lastMedResults');
-        container.innerHTML = `
-            <div style="margin-bottom: 0.5rem;">
-                <strong>${result.ejercicios_digitales.nombre}</strong>
-            </div>
-            <div style="display: flex; gap: 1rem; font-size: 0.875rem;">
-                <span>Nivel: ${result.nivel_alcanzado}</span>
-                <span>Puntos: ${result.puntos_obtenidos.toLocaleString()}</span>
-            </div>
-            <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.5rem;">
-                ${this.formatDate(result.session_date)}
-            </div>
-        `;
-    }
-
-    showSampleResults() {
-        // Datos de ejemplo para desarrollo
-        document.getElementById('lastMlcResults').innerHTML = `
-            <div style="margin-bottom: 0.5rem;"><strong>El Principito - Cap. 1</strong></div>
-            <div style="display: flex; gap: 1rem; font-size: 0.875rem;">
-                <span>WPM: 185.2</span>
-                <span>Comprensión: 87.5%</span>
-                <span>V. Efectiva: 162.1</span>
-            </div>
-            <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.5rem;">
-                Datos de ejemplo
-            </div>
-        `;
-
-        document.getElementById('lastMdmResults').innerHTML = `
-            <div style="margin-bottom: 0.5rem;"><strong>Creatividad Visual</strong></div>
-            <div style="font-size: 0.875rem;">
-                <span>Porcentaje: 80%</span>
-            </div>
-            <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.5rem;">
-                Datos de ejemplo
-            </div>
-        `;
-
-        document.getElementById('lastMedResults').innerHTML = `
-            <div style="margin-bottom: 0.5rem;"><strong>Memoria Espacial</strong></div>
-            <div style="display: flex; gap: 1rem; font-size: 0.875rem;">
-                <span>Nivel: 7</span>
-                <span>Puntos: 1,250</span>
-            </div>
-            <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.5rem;">
-                Datos de ejemplo
-            </div>
-        `;
-    }
-
-    async loadProgressCharts() {
-        // Los gráficos se implementarán en la siguiente fase con Chart.js
-        console.log('📊 Gráficos de progreso preparados para Chart.js');
-        
-        // Por ahora, actualizar placeholders con información
-        this.updateChartPlaceholders();
-    }
-
-    updateChartPlaceholders() {
-        const placeholders = document.querySelectorAll('.chart-placeholder');
-        placeholders.forEach(placeholder => {
-            placeholder.style.opacity = '0.8';
-            placeholder.style.fontStyle = 'italic';
+    // ----- Navegación módulos -----
+    wireModules(){
+      $$(".module-card,[data-module],.module-actions .btn").forEach(el=>{
+        el.addEventListener("click", ()=>{
+          const m = el.dataset.module || el.closest("[data-module]")?.dataset.module;
+          if (!m) return;
+          openModule(m);
         });
-    }
-
-    updateDateTime() {
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('es-CO', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+        el.addEventListener("keydown", (ev)=>{
+          if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); el.click(); }
         });
-        const timeStr = now.toLocaleTimeString('es-CO', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        document.getElementById('currentDate').textContent = `${dateStr} - ${timeStr}`;
+      });
     }
 
-    formatDate(date) {
-        if (!date) return '';
-        const dateObj = typeof date === 'string' ? new Date(date) : date;
-        return dateObj.toLocaleDateString('es-CO', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: 'America/Bogota'
-        });
+    onLogout(){
+      if (!confirm("¿Estás seguro de que quieres cerrar sesión?")) return;
+      try{ sessionStorage.clear(); localStorage.clear(); }catch{}
+      window.location.href = "../index.html";
     }
 
-    showError(message) {
-        console.error(message);
-        // Implementar toast notification aquí
-        alert(`Error: ${message}`);
+    updateDateTime(){
+      const el = $("#today") || $("#currentDate");
+      if (!el) return;
+      el.textContent = new Date().toLocaleString("es-CO",{weekday:"long", year:"numeric", month:"long", day:"numeric", hour:"2-digit", minute:"2-digit", timeZone: TZ});
     }
+  }
 
-    showSuccess(message) {
-        console.log(message);
-        // Implementar toast notification aquí
-    }
-}
-
-// === FUNCIONES GLOBALES ===
-
-// === FUNCIÓN OPENMODULE ACTUALIZADA ===
-// Reemplazar la función openModule existente en js/dashboard-estudiante.js
-
-// === FUNCIÓN OPENMODULE ACTUALIZADA PARA FASE 2 ===
-// Reemplazar en js/dashboard-estudiante.js
-
-function openModule(moduleType) {
-    console.log(`🎯 Abriendo módulo: ${moduleType} - FASE 2`);
-    
-    const urls = {
-        'MLC': 'mlc-module.html',
-        'MDM': 'mdm-module.html',
-        'MED': 'med-module.html'
-    };
-    
+  // ====== API GLOBAL ======
+  // Navegación a módulos (manteniendo compat)
+  window.openModule = function(moduleType){
+    console.log(`🎯 Abriendo módulo: ${moduleType}`);
+    const urls = { MLC: "mlc-module.html", MDM: "mdm-module.html", MED: "med-module.html" };
     const url = urls[moduleType];
-    
-    if (url) {
-        // Preparar datos del usuario para el módulo
-        const userData = estudianteDashboard ? estudianteDashboard.user : getUserFromSession();
-        
-        if (userData) {
-            // Guardar datos en sessionStorage para el módulo
-            sessionStorage.setItem('tsp_user', JSON.stringify(userData));
-            console.log('💾 Datos de usuario guardados para el módulo');
-        }
-        
-        console.log(`🚀 Redirigiendo a: ${url}`);
-        
-        // Mostrar mensaje de carga para MLC FASE 2
-        if (moduleType === 'MLC') {
-            // Crear overlay de carga
-            const loadingOverlay = document.createElement('div');
-            loadingOverlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
-                color: white;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                z-index: 9999;
-                font-family: var(--font-primary);
-            `;
-            
-            loadingOverlay.innerHTML = `
-                <div style="text-align: center;">
-                    <div style="font-size: 4rem; margin-bottom: 1rem;">📚</div>
-                    <h2 style="margin-bottom: 1rem; font-size: 1.5rem;">Módulo de Lectura Crítica</h2>
-                    <p style="margin-bottom: 2rem; opacity: 0.9;">FASE 2: Vocabulario + Test implementado</p>
-                    <div style="width: 200px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden;">
-                        <div style="width: 100%; height: 100%; background: white; border-radius: 2px; animation: loading 1s ease-in-out;"></div>
-                    </div>
-                </div>
-                <style>
-                    @keyframes loading {
-                        0% { width: 0%; }
-                        100% { width: 100%; }
-                    }
-                </style>
-            `;
-            
-            document.body.appendChild(loadingOverlay);
-            
-            // Redirigir después de la animación
-            setTimeout(() => {
-                window.location.href = url;
-            }, 1200);
-        } else {
-            // Para otros módulos mostrar mensaje de desarrollo
-            alert(`📋 Módulo ${moduleType}\n\n🚧 En desarrollo\n\nPróximamente: ${url}\n\nPor ahora solo MLC FASE 2 está disponible.`);
-        }
-        
+    if (!url){ alert("Módulo no disponible"); return; }
+
+    // Guardamos usuario para el módulo (ya lo hizo persistUserForModules, pero reforzamos)
+    try{
+      const raw = sessionStorage.getItem("tsp_user") || sessionStorage.getItem("userProfile");
+      if (raw) sessionStorage.setItem("tsp_user", raw);
+    }catch{}
+
+    if (moduleType === "MLC"){
+      // Overlay bonito de carga
+      const loadingOverlay = document.createElement("div");
+      loadingOverlay.style.cssText = `position:fixed;inset:0;background:linear-gradient(135deg,var(--primary-600),var(--primary-800));color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999`;
+      loadingOverlay.innerHTML = `
+        <div style="text-align:center">
+          <div style="font-size:4rem;margin-bottom:1rem">📚</div>
+          <h2 style="margin-bottom:1rem;font-size:1.5rem">Módulo de Lectura Crítica</h2>
+          <p style="margin-bottom:2rem;opacity:.9">Cargando…</p>
+          <div style="width:200px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden">
+            <div style="width:100%;height:100%;background:#fff;border-radius:2px;animation:loading 1s ease-in-out"></div>
+          </div>
+        </div>
+        <style>@keyframes loading{0%{width:0%}100%{width:100%}}</style>`;
+      document.body.appendChild(loadingOverlay);
+      setTimeout(()=>{ window.location.href = url; }, 900);
     } else {
-        console.error('❌ Módulo no reconocido:', moduleType);
-        alert('Módulo no disponible');
+      alert(`📋 Módulo ${moduleType}\n\n🚧 En desarrollo\n\nPróximamente: ${url}`);
     }
-}
+  };
 
-// === FUNCIÓN AUXILIAR PARA OBTENER USUARIO ===
-function getUserFromSession() {
-    // Intentar obtener datos del usuario desde sessionStorage
-    const userData = sessionStorage.getItem('tsp_user') || sessionStorage.getItem('userProfile');
-    if (userData) {
-        try {
-            return JSON.parse(userData);
-        } catch (e) {
-            console.error('Error parsing user data:', e);
-        }
-    }
-    
-    // Fallback: datos de ejemplo
-    return {
-        id: 'user123',
-        codigo_estudiante: 'E001002',
-        nombres: 'Juan Carlos',
-        apellidos: 'Pérez González',
-        grado: 5
-    };
-}
-
-function logout() {
-    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-        // Limpiar datos de sesión
-        sessionStorage.clear();
-        localStorage.clear();
-        
-        console.log('🚪 Cerrando sesión...');
-        alert('Cerrando sesión...\nRedirigiendo al login');
-        
-        // En la implementación final:
-        // window.location.href = '../index.html';
-    }
-}
-
-// === INICIALIZACIÓN ===
-let estudianteDashboard;
-
-async function initEstudianteDashboard() {
+  // Inicialización
+  let estudianteDashboard;
+  async function initEstudianteDashboard(){
     estudianteDashboard = new EstudianteDashboard();
     await estudianteDashboard.init();
-}
-
-// Auto-inicializar cuando se carga la página
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎓 Inicializando Dashboard del Estudiante TSP v2.0...');
+  }
+  document.addEventListener("DOMContentLoaded", ()=>{
+    console.log("🎓 Inicializando Dashboard del Estudiante TSP v2.1…");
     initEstudianteDashboard();
-});
-
-// === CONFIGURACIÓN SUPABASE ===
-// Nota: Esta configuración debería estar en config.js en la implementación final
-const SUPABASE_CONFIG = {
-    url: 'https://kryqjsncqsopjuwymhqd.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyeXFqc25jcXNvcGp1d3ltaHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjM3MDEsImV4cCI6MjA2ODg5OTcwMX0.w5HiaFiqlFJ_3QbcprUrufsOXTDWFg1zUMl2J7kWD6Y'
-};
-
-// Inicializar cliente Supabase (asumiendo que la librería está cargada)
-if (typeof window !== 'undefined' && window.supabase) {
-    const supabase = window.supabase.createClient(
-        SUPABASE_CONFIG.url,
-        SUPABASE_CONFIG.anonKey
-    );
-    console.log('✅ Cliente Supabase inicializado');
-} else {
-    console.warn('⚠️ Librería Supabase no encontrada, usando modo de desarrollo');
-}
-
-console.log('📁 dashboard-estudiante.js cargado exitosamente');
+  });
+})();
