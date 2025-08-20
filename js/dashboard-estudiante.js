@@ -61,7 +61,7 @@
         this.user = this.getUserFromSession();
         if (!this.user) {
           console.warn("No hay usuario en sesión, redirigiendo al login");
-          window.location.href = "../index.html";
+          window.location.href = "../login.html";
           return;
         }
 
@@ -376,7 +376,7 @@
     onLogout(){
       if (!confirm("¿Estás seguro de que quieres cerrar sesión?")) return;
       try{ sessionStorage.clear(); localStorage.clear(); }catch{}
-      window.location.href = "../index.html";
+      window.location.href = "../login.html";
     }
 
     updateDateTime(){

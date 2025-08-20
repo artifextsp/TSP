@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TSP • Administrador</title>
+
+  <!-- Si usas tu main.css, deja solo UNA de estas rutas y comenta la otra -->
+  <!-- <link rel="stylesheet" href="/assets/css/main.css"> -->
+  <!-- <link rel="stylesheet" href="../../assets/css/main.css"> -->
+
+  <!-- Academic Excellence + nuevo patrón de formularios -->
+  <style>
+    :root{
+      --primary-600:#2147b0; --primary-700:#1a3a8c; --primary-50:#eef3ff;
+      --gray-25:#fcfcfd; --gray-50:#fafafa; --gray-100:#f5f5f5; --gray-200:#eee; --gray-300:#e6e6e6;
+      --gray-500:#6b7280; --gray-600:#5b6472; --gray-700:#374151; --radius:16px;
+      --text-sm:.875rem; --text-base:.95rem; --text-lg:1.05rem; --text-xl:1.2rem; --text-2xl:1.45rem;
+      --label-size:.84rem;           /* NUEVO: etiqueta más pequeña */
+      --label-gap:10px;              /* NUEVO: separación etiqueta-campo */
+      --field-gap:16px;              /* NUEVO: separación entre campos */
+      --input-h:44px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,var(--gray-100),#fff);color:#0f172a;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+
+    /* Topbar */
+    .topbar{background:linear-gradient(135deg,var(--primary-600),var(--primary-700));color:#fff}
+    .topbar-inner{max-width:1280px;margin:0 auto;padding:12px 20px;display:flex;justify-content:space-between;align-items:center}
+    .logout-btn{border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;padding:6px 12px;border-radius:10px;font-size:var(--text-sm)}
+    .logout-btn:hover{background:rgba(255,255,255,.12)}
+
+    /* Layout */
+    .layout{display:flex;min-height:calc(100vh - 48px)}
+    .sidebar{width:260px;background:var(--gray-50);border-right:1px solid var(--gray-300);padding:22px}
+    .nav-item{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;color:var(--gray-700);text-decoration:none}
+    .nav-item:hover{background:var(--primary-50);color:var(--primary-700)}
+    .nav-item.active{background:var(--primary-100);color:var(--primary-800)}
+    .main{flex:1;padding:28px}
+    .section{display:none}.section.active{display:block}
+
+    /* Cards / tablas */
+    .card{background:#fff;border:1px solid var(--gray-300);border-radius:16px;box-shadow:0 6px 20px rgba(0,0,0,.04);margin-bottom:22px}
+    .card-header{padding:14px 18px;border-bottom:1px solid var(--gray-300)}
+    .card-body{padding:18px}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{border-bottom:1px solid var(--gray-300);padding:10px;text-align:left}
+    .muted{color:var(--gray-500);font-size:.95em}
+    .chip{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--gray-300);font-size:.78rem}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+    @media (max-width:1000px){.grid-2{grid-template-columns:1fr}.sidebar{width:220px}}
+
+    /* ---------- NUEVO: patrón de formularios (en todo el admin) ---------- */
+    .form-group{display:flex;flex-direction:column;margin:0 0 var(--field-gap)}
+    .form-group label{font-size:var(--label-size);font-weight:600;color:#3a4557;margin:0 0 var(--label-gap);line-height:1.25}
+    .form-input{height:var(--input-h);border:1px solid var(--gray-300);border-radius:12px;padding:0 12px;background:#fff;font-size:var(--text-base)}
+    .form-input:focus{border-color:var(--primary-600);box-shadow:0 0 0 3px rgba(33,71,176,.12);outline:none}
+    .form-select{height:var(--input-h)}
+    .form-hint{margin-top:8px;color:var(--gray-500);font-size:var(--text-sm)}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+    .btn{appearance:none;border:0;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer}
+    .btn-primary{background:var(--primary-600);color:#fff}
+    .btn-primary:hover{background:var(--primary-700)}
+    .btn-secondary{background:#e7eaf7}
+    .btn-sm{padding:6px 10px;border-radius:10px}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div><strong>TSP • Panel Administrador</strong> <span id="adminName" class="muted"></span></div>
+      <button id="btnLogout" class="logout-btn">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <nav>
+        <a class="nav-item active" data-view="inicio">🏠 Inicio</a>
+        <a class="nav-item" data-view="buscador">🔎 Buscador</a>
+        <a class="nav-item" data-view="instituciones">🏫 Instituciones</a>
+        <a class="nav-item" data-view="grupos">👥 Grupos</a>
+        <a class="nav-item" data-view="usuarios">🧑‍🎓 Usuarios</a>
+        <a class="nav-item" data-view="asignaciones">🗂️ Asignación de ciclos</a>
+        <a class="nav-item" data-view="informes">📄 Informes</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <!-- INICIO -->
+      <section id="view-inicio" class="section active">
+        <div class="card">
+          <div class="card-header"><h2>Bienvenido</h2></div>
+          <div class="card-body">
+            <p class="muted">Usa el menú de la izquierda para gestionar instituciones, grupos, usuarios y asignar ciclos.</p>
+            <ul style="line-height:1.9">
+              <li>🔐 Sistema de autenticación independiente para administradores.</li>
+              <li>🔎 Búsqueda por código, nombre, rol y más.</li>
+              <li>🏫 CRUD de instituciones y grupos.</li>
+              <li>🧑‍🎓 Alta de estudiantes, docentes y rectores.</li>
+              <li>🚫 Bloqueo/activación de entidades.</li>
+              <li>🗂️ Asignación de ciclos por grupo o estudiante.</li>
+              <li>📄 Exportación básica (CSV) por rango de fechas.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- BUSCADOR -->
+      <section id="view-buscador" class="section">
+        <div class="card">
+          <div class="card-header"><h3>Buscador avanzado</h3></div>
+          <div class="card-body">
+            <div class="toolbar">
+              <input id="q" class="form-input" placeholder="Código, nombre o apellidos…">
+              <select id="qRol" class="form-input form-select" style="max-width:220px">
+                <option value="">Rol (todos)</option>
+                <option value="estudiante">Estudiante</option>
+                <option value="docente">Docente</option>
+                <option value="rector">Rector</option>
+              </select>
+              <button id="btnBuscar" class="btn btn-secondary">Buscar</button>
+            </div>
+            <div id="searchSummary" class="muted"></div>
+            <div id="searchResults"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INSTITUCIONES -->
+      <section id="view-instituciones" class="section">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><h3>Nueva institución</h3></div>
+            <div class="card-body">
+              <div class="form-group"><label for="instNombre">Nombre</label><input id="instNombre" class="form-input"></div>
+              <div class="form-group"><label for="instCodigo">Código</label><input id="instCodigo" class="form-input"></div>
+              <div class="form-group"><label for="instEmail">Email</label><input id="instEmail" class="form-input"></div>
+              <div class="form-group"><label for="instTelefono">Teléfono</label><input id="instTelefono" class="form-input"></div>
+              <div class="form-group"><label for="instDireccion">Dirección</label><input id="instDireccion" class="form-input"></div>
+              <button id="btnCrearInst" class="btn btn-primary">Crear institución</button>
+              <div id="instMsg" class="form-hint"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h3>Listado</h3></div>
+            <div class="card-body">
+              <div class="toolbar">
+                <input id="instFilter" class="form-input" placeholder="Filtrar por nombre">
+                <button id="btnReloadInst" class="btn btn-secondary btn-sm">Actualizar</button>
+              </div>
+              <div id="instTable"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- GRUPOS -->
+      <section id="view-grupos" class="section">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><h3>Nuevo grupo</h3></div>
+            <div class="card-body">
+              <div class="form-group"><label for="grupoInst">Institución</label><select id="grupoInst" class="form-input form-select"></select></div>
+              <div class="form-group"><label for="grupoNombre">Nombre del grupo</label><input id="grupoNombre" class="form-input"></div>
+              <div class="form-group"><label for="grupoGrado">Grado</label><input id="grupoGrado" type="number" class="form-input" min="1" max="11"></div>
+              <div class="form-group"><label for="grupoSeccion">Sección (opcional)</label><input id="grupoSeccion" class="form-input"></div>
+              <button id="btnCrearGrupo" class="btn btn-primary">Crear grupo</button>
+              <div id="grupoMsg" class="form-hint"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h3>Listado</h3></div>
+            <div class="card-body">
+              <div class="toolbar">
+                <select id="grupoInstFilter" class="form-input form-select" style="max-width:280px"></select>
+                <button id="btnReloadGrupos" class="btn btn-secondary btn-sm">Actualizar</button>
+              </div>
+              <div id="gruposTable"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- USUARIOS -->
+      <section id="view-usuarios" class="section">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><h3>Nuevo usuario</h3></div>
+            <div class="card-body">
+              <div class="form-group"><label for="usrRol">Rol</label>
+                <select id="usrRol" class="form-input form-select">
+                  <option value="estudiante">Estudiante</option>
+                  <option value="docente">Docente</option>
+                  <option value="rector">Rector</option>
+                </select>
+              </div>
+              <div class="form-group"><label for="usrNombres">Nombres</label><input id="usrNombres" class="form-input"></div>
+              <div class="form-group"><label for="usrApellidos">Apellidos</label><input id="usrApellidos" class="form-input"></div>
+              <div class="form-group"><label for="usrInst">Institución</label><select id="usrInst" class="form-input form-select"></select></div>
+              <div class="form-group"><label for="usrGrupo">Grupo (opcional / estudiantes)</label><select id="usrGrupo" class="form-input form-select"></select></div>
+              <div class="form-group"><label for="usrEmail">Email (opcional)</label><input id="usrEmail" class="form-input"></div>
+              <div class="form-group"><label for="usrTel">Teléfono (opcional)</label><input id="usrTel" class="form-input"></div>
+              <button id="btnCrearUsuario" class="btn btn-primary">Crear usuario</button>
+              <div id="usrMsg" class="form-hint"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h3>Listado</h3></div>
+            <div class="card-body">
+              <div class="toolbar">
+                <input id="usrFilter" class="form-input" placeholder="Buscar por nombre o código">
+                <select id="usrRolFilter" class="form-input form-select" style="max-width:220px">
+                  <option value="">Rol (todos)</option>
+                  <option value="estudiante">Estudiante</option>
+                  <option value="docente">Docente</option>
+                  <option value="rector">Rector</option>
+                </select>
+                <button id="btnReloadUsuarios" class="btn btn-secondary btn-sm">Actualizar</button>
+              </div>
+              <div id="usuariosTable"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ASIGNACIONES -->
+      <section id="view-asignaciones" class="section">
+        <div class="card">
+          <div class="card-header"><h3>Asignación de ciclos</h3></div>
+          <div class="card-body">
+            <div class="grid-2">
+              <div>
+                <div class="form-group"><label for="asigScope">Asignar a</label>
+                  <select id="asigScope" class="form-input form-select">
+                    <option value="grupo">Grupo</option>
+                    <option value="estudiante">Estudiante</option>
+                  </select>
+                </div>
+                <div class="form-group"><label for="asigInst">Institución</label><select id="asigInst" class="form-input form-select"></select></div>
+                <div class="form-group" id="wrapAsigGrupo"><label for="asigGrupo">Grupo</label><select id="asigGrupo" class="form-input form-select"></select></div>
+                <div class="form-group" id="wrapAsigEst" style="display:none"><label for="asigEst">Estudiante</label><select id="asigEst" class="form-input form-select"></select></div>
+              </div>
+              <div>
+                <div class="form-group"><label for="asigCiclo">Ciclo</label><select id="asigCiclo" class="form-input form-select"></select></div>
+                <div class="form-group"><label for="asigInicio">Fecha de inicio</label><input id="asigInicio" type="date" class="form-input"></div>
+                <div class="form-group"><label for="asigPeriodicidad">Periodicidad (texto)</label><input id="asigPeriodicidad" class="form-input" placeholder="semanal / diaria / etc."></div>
+                <div class="form-group"><label for="asigDia">Día de semana (0–6, opcional)</label><input id="asigDia" type="number" min="0" max="6" class="form-input" placeholder="1=Lunes"></div>
+                <button id="btnAsignar" class="btn btn-primary">Crear asignación</button>
+                <div id="asigMsg" class="form-hint"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Asignaciones recientes</h3></div>
+          <div class="card-body"><div id="asigTable"></div></div>
+        </div>
+      </section>
+
+      <!-- INFORMES -->
+      <section id="view-informes" class="section">
+        <div class="card">
+          <div class="card-header"><h3>Informes CSV (básico)</h3></div>
+          <div class="card-body">
+            <div class="toolbar">
+              <select id="repEntidad" class="form-input form-select">
+                <option value="estudiante">Por Estudiante</option>
+                <option value="grupo">Por Grupo</option>
+              </select>
+              <input id="repId" class="form-input" placeholder="ID estudiante o grupo">
+              <input id="repDesde" type="date" class="form-input">
+              <input id="repHasta" type="date" class="form-input">
+              <button id="btnDescargarCSV" class="btn btn-secondary">Descargar CSV</button>
+            </div>
+            <p class="muted">Export básico solo con <code>resultados_mlc</code>. Luego sumamos MED/MDM + PDF.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__TSP__ = {
+      SUPABASE_URL: 'https://kryqjsncqsopjuwymhqd.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyeXFqc25jcXNvcGp1d3ltaHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjM3MDEsImV4cCI6MjA2ODg5OTcwMX0.w5HiaFiqlFJ_3QbcprUrufsOXTDWFg1zUMl2J7kWD6Y'
+    };
+  </script>
+  <script src="./admin-dashboard.js" type="module"></script>
+</body>
+</html>

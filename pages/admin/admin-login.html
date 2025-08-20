@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TSP • Admin – Iniciar sesión</title>
+  <style>
+    :root{
+      --primary-600:#2147b0; --primary-700:#1a3a8c; --primary-50:#eef3ff;
+      --gray-50:#fafafa; --gray-100:#f5f5f5; --gray-300:#e6e6e6; --gray-500:#6b7280;
+      --radius:16px; --label-size:.84rem; --label-gap:10px; --field-gap:16px; --input-h:44px;
+    }
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,var(--gray-100),#fff);color:#0f172a;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+    .container{max-width:720px;margin:7vh auto;padding:0 16px}
+    .card{background:var(--gray-50);border:1px solid var(--gray-300);border-radius:var(--radius);box-shadow:0 6px 20px rgba(0,0,0,.04);overflow:hidden}
+    .card-h{padding:24px 28px;background:var(--primary-50);border-bottom:1px solid var(--gray-300)}
+    .card-b{padding:26px 28px}
+    h1{margin:0;font-size:1.35rem}
+    .note{margin:.35rem 0 0;color:var(--gray-500);font-size:.92rem}
+    .form-group{display:flex;flex-direction:column;margin:0 0 var(--field-gap)}
+    .form-group label{font-size:var(--label-size);font-weight:600;color:#3a4557;margin:0 0 var(--label-gap);line-height:1.25}
+    input[type=text]{width:100%;height:var(--input-h);border:1px solid var(--gray-300);border-radius:12px;padding:0 12px;font-size:1rem;outline:none}
+    input[type=text]:focus{border-color:var(--primary-600);box-shadow:0 0 0 3px rgba(33,71,176,.12)}
+    .help{color:var(--gray-500);font-size:.85rem;margin-top:6px}
+    .err{display:none;margin-top:8px;font-size:.9rem;color:#b91c1c}
+    .btn{appearance:none;border:0;border-radius:12px;padding:10px 16px;font-weight:600;cursor:pointer}
+    .btn-primary{background:var(--primary-600);color:#fff}.btn-primary:hover{background:var(--primary-700)}
+    .row{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+    .link{color:#1a3a8c;text-decoration:none;font-size:.9rem}
+    .link:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="card-h">
+        <h1>Iniciar sesión <span style="opacity:.85">| Administrador</span></h1>
+        <p class="note">Acceso exclusivo — autenticación separada de estudiantes y docentes</p>
+      </div>
+      <div class="card-b">
+        <div class="form-group">
+          <label for="adminCode">Código (AA9999)</label>
+          <input id="adminCode" type="text" placeholder="Ej: AB1234" maxlength="6" autocomplete="one-time-code">
+          <div class="help">2 letras + 4 números</div>
+          <div id="msg" class="err"></div>
+        </div>
+
+        <div class="row">
+          <label style="display:flex;align-items:center;gap:8px;font-size:.95rem;">
+            <input id="remember" type="checkbox"> Recordarme (8 horas)
+          </label>
+          <a id="switchAccount" href="#" class="link">Cambiar de cuenta</a>
+        </div>
+
+        <div style="margin-top:12px">
+          <button id="btnLogin" class="btn btn-primary">Entrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Config de tu proyecto -->
+  <script>
+    window.__TSP__ = {
+      SUPABASE_URL: 'https://kryqjsncqsopjuwymhqd.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyeXFqc25jcXNvcGp1d3ltaHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjM3MDEsImV4cCI6MjA2ODg5OTcwMX0.w5HiaFiqlFJ_3QbcprUrufsOXTDWFg1zUMl2J7kWD6Y'
+    };
+  </script>
+  <script src="./admin-login.js" type="module"></script>
+</body>
+</html>

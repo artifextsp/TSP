@@ -1,0 +1,41 @@
+/* Card */
+.card{
+  background: var(--white);
+  border:1px solid var(--gray-300);
+  border-radius: var(--radius-xl);
+  overflow:hidden;
+}
+.card-header{padding:var(--space-8) var(--space-6) var(--space-4)}
+.card-body{padding:0 var(--space-6) var(--space-6)}
+.card-footer{padding:var(--space-4) var(--space-6);border-top:1px solid var(--gray-300)}
+
+/* Formularios */
+.form{display:grid;gap:var(--space-4)}
+.form-group{display:grid;gap:var(--space-2)}
+.form-label{font-weight:var(--font-medium)}
+.form-input{
+  width:100%;
+  padding:var(--space-3) var(--space-4);
+  border:1px solid var(--gray-300);
+  border-radius:var(--radius-lg);
+  font-size:var(--text-base);
+  outline:none;
+}
+.form-input:focus{border-color:var(--primary-600)}
+.form-error{color:#b00020;font-size:var(--text-sm);margin-top:4px}
+
+/* Botones */
+.btn{
+  display:inline-block;
+  padding:var(--space-3) var(--space-4);
+  border-radius:var(--radius-lg);
+  border:1px solid transparent;
+  cursor:pointer;
+  font-weight:var(--font-semibold);
+}
+.btn-primary{
+  background:var(--primary-600);
+  color:var(--white);
+  border-color:var(--primary-600);
+}
+.btn-block{width:100%}

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TSP • Catálogo de Ciclos</title>
+<style>
+  :root{
+    --p600:#2147b0; --p700:#1a3a8c; --p50:#eef3ff;
+    --g50:#fafafa; --g100:#f5f5f5; --g300:#e6e6e6; --g500:#6b7280;
+    --radius:16px; --label:.84rem; --gap:10px; --field:16px; --h:44px;
+  }
+  body{margin:0;background:linear-gradient(180deg,var(--g100),#fff);color:#0f172a;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+  .top{background:linear-gradient(135deg,var(--p600),var(--p700));color:#fff}
+  .topin{max-width:1280px;margin:0 auto;padding:12px 18px;display:flex;gap:10px;align-items:center;justify-content:space-between}
+  .btn{appearance:none;border:0;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer}
+  .btn-primary{background:var(--p600);color:#fff}.btn-primary:hover{background:var(--p700)}
+  .btn-soft{background:#e7eaf7}
+  .wrap{max-width:1280px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:420px 1fr;gap:20px}
+  .card{background:#fff;border:1px solid var(--g300);border-radius:16px;box-shadow:0 6px 20px rgba(0,0,0,.04)}
+  .ch{padding:14px 18px;border-bottom:1px solid var(--g300)}
+  .cb{padding:16px 18px}
+  .fg{display:flex;flex-direction:column;margin:0 0 var(--field)}
+  .fg label{font-size:var(--label);font-weight:600;color:#3a4557;margin:0 0 var(--gap)}
+  .in{height:var(--h);border:1px solid var(--g300);border-radius:12px;padding:0 12px;font-size:.95rem}
+  .in:focus{outline:none;border-color:var(--p600);box-shadow:0 0 0 3px rgba(33,71,176,.12)}
+  textarea.in{height:180px;padding:12px;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .muted{color:var(--g500);font-size:.9rem}
+  table{width:100%;border-collapse:collapse}
+  th,td{border-bottom:1px solid var(--g300);padding:10px;text-align:left;font-size:.95rem}
+  .chip{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--g300);font-size:.78rem}
+</style>
+</head>
+<body>
+  <header class="top"><div class="topin">
+    <div><strong>Catálogo de Ciclos</strong></div>
+    <div>
+      <a class="btn btn-soft" href="/pages/admin/admin-dashboard.html">Volver al Panel</a>
+      <a class="btn btn-primary" href="/pages/admin/asignar-ciclos.html">Ir a Asignador</a>
+    </div>
+  </div></header>
+
+  <main class="wrap">
+    <!-- Form constructor -->
+    <section class="card">
+      <div class="ch"><h3 style="margin:0">Nuevo/Editar ciclo</h3></div>
+      <div class="cb">
+        <div class="fg"><label>Nombre</label><input id="nombre" class="in" placeholder="Lectura Crítica 6° – Ciclo 1"></div>
+        <div class="fg"><label>Número de ciclo</label><input id="num" type="number" class="in"></div>
+        <div class="fg"><label>Grado objetivo</label><input id="grado" type="number" class="in"></div>
+        <div class="fg"><label>Duración (semanas)</label><input id="semanas" type="number" class="in"></div>
+        <div class="fg"><label>Sesiones por semana</label><input id="sesxsem" type="number" class="in"></div>
+        <div class="fg"><label>Tipo</label>
+          <select id="tipo" class="in">
+            <option value="MLC">MLC</option>
+            <option value="MED">MED</option>
+            <option value="MDM">MDM</option>
+            <option value="MLC+MED">MLC+MED</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Parámetros (JSON) – metas y secuencia</label>
+          <textarea id="json" class="in" spellcheck="false" placeholder='{"metas":{"wpm":120,"comprension":70},"secuencia":[{"semana":1,"sesiones":["vocabulario","lectura"]}]}'></textarea>
+          <div class="muted">Consejo: incluye <code>metas</code> y una <code>secuencia</code> por semanas/sesiones.</div>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="btnPlantillaMLC" class="btn btn-soft">Cargar plantilla MLC</button>
+          <button id="btnValidar" class="btn btn-soft">Validar JSON</button>
+          <button id="btnGuardar" class="btn btn-primary">Guardar ciclo</button>
+        </div>
+
+        <div id="msg" class="muted" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    <!-- Lista de ciclos -->
+    <section class="card">
+      <div class="ch"><h3 style="margin:0">Ciclos existentes</h3></div>
+      <div class="cb">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <input id="filtro" class="in" placeholder="Filtrar por nombre o tipo" style="max-width:320px">
+          <button id="btnRefrescar" class="btn btn-soft">Actualizar</button>
+        </div>
+        <div id="tabla"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__TSP__ = {
+      SUPABASE_URL: 'https://kryqjsncqsopjuwymhqd.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyeXFqc25jcXNvcGp1d3ltaHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjM3MDEsImV4cCI6MjA2ODg5OTcwMX0.w5HiaFiqlFJ_3QbcprUrufsOXTDWFg1zUMl2J7kWD6Y'
+    };
+  </script>
+  <script type="module" src="./ciclos.js"></script>
+</body>
+</html>
