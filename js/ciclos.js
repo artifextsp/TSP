@@ -4,16 +4,19 @@ import {
   crearCiclo, publicarCiclo, listarCiclos, duplicarCiclo
 } from './api-ciclos.js';
 
-/* ====== Guard Admin ====== */
+/* ====== Guard Admin (prioriza sesión local) ====== */
 (function ensureAdmin() {
   const read = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
   const sA = read('tsp_admin_session'); const sU = read('tsp_user_session');
-  const role = String(sA?.rol ?? sA?.role ?? sA?.perfil ?? sU?.rol ?? sU?.role ?? sU?.perfil ?? '').toLowerCase();
+  const role = String(
+    sA?.rol ?? sA?.role ?? sA?.perfil ??
+    sU?.rol ?? sU?.role ?? sU?.perfil ?? ''
+  ).toLowerCase();
   const isAdmin = (role === 'admin') || (sA?.is_admin === true) || (sU?.is_admin === true);
   if (!isAdmin) { alert('Acceso solo para Administrador.'); location.href='../../login.html'; }
 })();
 
-/* ====== Utiles DOM ====== */
+/* ====== DOM ====== */
 const $ = (s, r=document)=>r.querySelector(s);
 const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
 const byId = (id)=>document.getElementById(id);
@@ -27,7 +30,7 @@ const ui = {
   filtro: byId('filtro'), btnRecargar: byId('btnRecargar'),
   tbody: byId('tbodyCiclos'), msg: byId('msg'),
 };
-const setMsg = (t='') => (ui.msg.textContent = t);
+const setMsg = (t='') => (ui.msg && (ui.msg.textContent = t));
 
 /* ====== Renders ====== */
 function renderOptions(selectEl, items, map) {
@@ -42,6 +45,7 @@ function renderOptions(selectEl, items, map) {
   }
   selectEl.value = '';
 }
+
 function renderJuegos(juegos) {
   ui.juegos.innerHTML = '';
   const group = {}; juegos.forEach(j => (group[j.habilidad] ||= []).push(j));
@@ -58,7 +62,7 @@ function renderJuegos(juegos) {
   });
 }
 
-/* ====== Carga de catálogos por grado ====== */
+/* ====== Carga de catálogos ====== */
 async function cargarCatalogos(grado) {
   if (!grado) { ui.lectura.innerHTML=''; ui.desafio.innerHTML=''; ui.juegos.innerHTML=''; return; }
   setMsg('Cargando catálogos…');
@@ -67,9 +71,9 @@ async function cargarCatalogos(grado) {
       listarLecturas(grado), listarDesafios(grado), listarJuegos(grado)
     ]);
     renderOptions(ui.lectura, lecturas, (l)=>({ value: l.id, label: (l.numero? `${l.numero}. `:'') + l.titulo }));
-    ui.lecturaInfo.textContent = `${lecturas.length} lecturas.`;
+    ui.lecturaInfo && (ui.lecturaInfo.textContent = `${lecturas.length} lecturas.`);
     renderOptions(ui.desafio, desafios, (d)=>({ value: d.id, label: d.titulo }));
-    ui.desafioInfo.textContent = `${desafios.length} desafíos.`;
+    ui.desafioInfo && (ui.desafioInfo.textContent = `${desafios.length} desafíos.`);
     renderJuegos(juegos);
   } catch (e) { console.error(e); alert('Error cargando catálogos (ver consola).'); }
   finally { setMsg(''); }
@@ -78,9 +82,11 @@ async function cargarCatalogos(grado) {
 /* ====== Listado ====== */
 const fmtDate = (s)=> new Date(s).toLocaleString();
 const juegosCount = (r)=> r.juegos_count ?? (Array.isArray(r.juegos)? r.juegos.length : '-');
+
 async function cargarCiclos() {
   try {
-    const rows = await listarCiclos({ filtro: ui.filtro.value || '' });
+    const rows = await listarCiclos({ filtro: ui.filtro?.value || '' });
+    if (!ui.tbody) return;
     ui.tbody.innerHTML = rows.map(r=>`
       <tr>
         <td>${r.nombre}</td>
@@ -97,6 +103,7 @@ async function cargarCiclos() {
 
 /* ====== Crear + Publicar ====== */
 const juegosSeleccionados = ()=> $$('#juegos input[type="checkbox"]:checked').map(cb=>cb.dataset.id);
+
 async function onCrearPublicar() {
   const grado = ui.grado.value, lecturaId = ui.lectura.value, desafioId = ui.desafio.value;
   const juegosIds = juegosSeleccionados(); const nombre = ui.nombre.value.trim(); const descripcion = ui.descripcion.value.trim();
@@ -115,30 +122,44 @@ async function onCrearPublicar() {
   finally { ui.btnCrearPublicar.disabled = false; setTimeout(()=>setMsg(''), 1000); }
 }
 
-/* ====== Init ====== */
+/* ====== Grados (1–11 + Profesional) ====== */
+const GRADOS = [
+  { value: '1',  label: '1°' },  { value: '2',  label: '2°' },  { value: '3',  label: '3°' },
+  { value: '4',  label: '4°' },  { value: '5',  label: '5°' },  { value: '6',  label: '6°' },
+  { value: '7',  label: '7°' },  { value: '8',  label: '8°' },  { value: '9',  label: '9°' },
+  { value: '10', label: '10°' }, { value: '11', label: '11°' },
+  { value: '12', label: 'Profesional' }
+];
+
 function llenarGrados() {
-  ui.grado.innerHTML = '';
-  const def = document.createElement('option'); def.value=''; def.textContent='Selecciona…'; ui.grado.appendChild(def);
-  for (let g=3; g<=11; g++){ const op=document.createElement('option'); op.value=String(g); op.textContent=`${g}°`; ui.grado.appendChild(op); }
-  ui.grado.value='5';
+  renderOptions(ui.grado, GRADOS, (g)=>({ value: g.value, label: g.label }));
+  // No selecciono nada por defecto para que el admin elija.
 }
+
+/* ====== Init ====== */
 function resetWizard() {
   ui.lectura.innerHTML=''; ui.desafio.innerHTML=''; ui.juegos.innerHTML='';
   ui.nombre.value=''; ui.descripcion.value='';
 }
+
 function wire() {
   ui.grado.addEventListener('change', ()=> cargarCatalogos(ui.grado.value));
   ui.btnCrearPublicar.addEventListener('click', onCrearPublicar);
   ui.btnReset.addEventListener('click', ()=>{ resetWizard(); cargarCatalogos(ui.grado.value); });
-  ui.btnRecargar.addEventListener('click', cargarCiclos);
-  ui.filtro.addEventListener('input', ()=>{ clearTimeout(window._t); window._t=setTimeout(cargarCiclos,250); });
-  ui.tbody.addEventListener('click', async (e)=>{
+  ui.btnRecargar && ui.btnRecargar.addEventListener('click', cargarCiclos);
+  ui.filtro && ui.filtro.addEventListener('input', ()=>{ clearTimeout(window._t); window._t=setTimeout(cargarCiclos,250); });
+
+  // Duplicar
+  ui.tbody && ui.tbody.addEventListener('click', async (e)=>{
     const id = e.target?.dataset?.dup; if (!id) return;
     try { e.target.disabled = true; await duplicarCiclo(id); await cargarCiclos(); }
     catch(err){ console.error(err); alert('No se pudo duplicar el ciclo.'); }
     finally{ e.target.disabled = false; }
   });
 }
+
 document.addEventListener('DOMContentLoaded', async ()=>{
-  llenarGrados(); await cargarCatalogos(ui.grado.value); await cargarCiclos(); wire();
+  llenarGrados();                  // << ahora sí verás 1°–11° + Profesional
+  await cargarCiclos();            // listado
+  wire();
 });
