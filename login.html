@@ -1,57 +1,36 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <title>TSP • Iniciar sesión</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TSP · Iniciar sesión</title>
+  <link rel="stylesheet" href="./css/main.css" />
+</head>
+<body>
+  <main class="tsp-container">
+    <section class="tsp-card">
+      <h1 class="tsp-title">Iniciar sesión</h1>
+      <p class="tsp-sub">Acceso con código — Estudiantes, Docentes y Rectores</p>
 
-    <!-- Fuentes + Estilos base y componentes -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+      <form id="login-form" class="tsp-form" novalidate>
+        <label for="pw" class="tsp-label">Código (AA9999)</label>
+        <input id="pw" name="code" type="text" maxlength="6"
+               placeholder="Ej: AB1234" autocomplete="one-time-code" required class="tsp-input" />
 
-    <!-- Mantengo tus rutas de CSS -->
-    <link rel="stylesheet" href="./css/main.css" />
-    <link rel="stylesheet" href="./css/components.css" />
-    <link rel="stylesheet" href="./css/login.css" />
-  </head>
+        <label class="tsp-remember">
+          <input type="checkbox" id="remember" />
+          Recordarme por 8 horas
+        </label>
 
-  <body class="tsp-gradient">
-    <main class="container flex justify-center items-center" style="min-height: 100vh;">
-      <section class="card tsp-shadow" style="max-width: 520px; width: 100%;">
-        <div class="card-header">
-          <h2 class="tsp-text-primary">Iniciar sesión</h2>
-          <p class="text-sm" style="color: var(--gray-600);">Acceso con código — Estudiantes, Docentes y Rectores</p>
-        </div>
+        <button type="submit" id="btnLogin" class="tsp-btn">Entrar</button>
+        <p id="msg" class="tsp-msg"></p>
+      </form>
 
-        <div class="card-body">
-          <form id="code-form" class="form" autocomplete="off">
-            <div class="form-group">
-              <label class="form-label" for="code">Código (AA9999)</label>
-              <!-- id="code" para que el JS lo detecte al 100% -->
-              <input id="code" name="code" class="form-input" placeholder="Ej: AB1234" maxlength="6" inputmode="text" autocomplete="one-time-code" />
-              <!-- Mensaje de error estándar que usa el JS -->
-              <p id="msg" class="form-error" style="display:none;"></p>
-            </div>
-            <!-- id opcional por si lo necesitas desde JS -->
-            <button id="btnLogin" class="btn btn-primary btn-block" type="submit">Entrar</button>
-          </form>
-        </div>
+      <footer class="tsp-footer">Thinking Skills Program v2.0</footer>
+    </section>
+  </main>
 
-        <div class="card-footer" style="text-align:center; color: var(--gray-600);">
-          <small>Thinking Skills Program v2.0</small>
-        </div>
-      </section>
-    </main>
-
-    <!-- Configuración de tu proyecto Supabase (debe ir ANTES del auth.js) -->
-    <script>
-  window.__TSP__ = {
-    SUPABASE_URL: 'https://kryqjsncqsopjuwymhqd.supabase.co',
-    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyeXFqc25jcXNvcGp1d3ltaHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjM3MDEsImV4cCI6MjA2ODg5OTcwMX0.w5HiaFiqlFJ_3QbcprUrufsOXTDWFg1zUMl2J7kWD6Y'
-  };
-</script>
-<script type="module" src="./js/auth.js"></script>
-
-  </body>
+  <!-- Carga al final para asegurar DOM listo -->
+  <script type="module" src="./js/auth.js"></script>
+</body>
 </html>

@@ -1,0 +1,13 @@
+﻿# SO/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.history/
+# builds y temporales
+dist/
+build/
+tmp/
+*.log
+# credenciales locales
+.env
+.env.local

@@ -84,7 +84,34 @@
         <a class="nav-item" data-view="usuarios">🧑‍🎓 Usuarios</a>
         <a class="nav-item" data-view="asignaciones">🗂️ Asignación de ciclos</a>
         <a class="nav-item" data-view="informes">📄 Informes</a>
+
+        <!-- Enlace directo a CICLOS (Admin) -->
+        <a class="nav-item" href="./ciclos.html" id="link-ciclos">🌀 Ciclos (nuevo)</a>
+<script>
+  // Sella la sesión como ADMIN al hacer clic en el enlace
+  (function () {
+    const el = document.getElementById('link-ciclos');
+    if (!el) return;
+    el.addEventListener('click', function () {
+      try {
+        const u = JSON.parse(localStorage.getItem('tsp_user_session') || '{}');
+        localStorage.setItem('tsp_admin_session', JSON.stringify({
+          id: u.id || 'admin',
+          rol: 'admin',
+          role: 'admin',
+          perfil: 'admin',
+          is_admin: true,
+          exp: Date.now() + 8 * 3600 * 1000
+        }));
+      } catch {}
+    });
+  })();
+</script>
+
+
       </nav>
+      
+
     </aside>
 
     <main class="main">

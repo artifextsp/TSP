@@ -26,12 +26,17 @@ const session = requireSession();
 $("#btnLogout").addEventListener("click", ()=>{ localStorage.removeItem("tsp_admin_session"); window.location.href="/pages/admin/admin-login.html"; });
 
 /* ========= Navegación ========= */
-$$(".nav-item").forEach(a=>a.addEventListener("click",(e)=>{
-  e.preventDefault();
+
+$$(".nav-item").forEach(a => a.addEventListener("click", (e) => {
   const view = a.dataset.view;
-  $$(".nav-item").forEach(n=>n.classList.remove("active")); a.classList.add("active");
-  $$(".section").forEach(s=>s.classList.remove("active")); $("#view-"+view).classList.add("active");
+  if (!view) return;               // si no tiene data-view es un enlace real (p. ej. ./ciclos.html)
+  e.preventDefault();
+  $$(".nav-item").forEach(n => n.classList.remove("active"));
+  a.classList.add("active");
+  $$(".section").forEach(s => s.classList.remove("active"));
+  $("#view-" + view).classList.add("active");
 }));
+
 
 /* ========= Helpers UI ========= */
 function tableFromRows(headers, rows){

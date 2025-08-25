@@ -1,0 +1,206 @@
+﻿=== ANÁLISIS COMPLETO TSP-Sistema ===
+Fecha: 08/23/2025 11:14:28
+Estructura: Frontend HTML + CSS + JS + Supabase
+
+=== PÁGINAS HTML ===
+Página principal:
+
+
+Name          : login.html
+Length        : 2686
+LastWriteTime : 20/08/2025 12:14:42 p. m.
+
+
+
+
+Páginas adicionales en /pages:
+
+Name                      Length LastWriteTime           
+----                      ------ -------------           
+dashboard-estudiante.html  11790 20/08/2025 2:12:47 p. m.
+mlc-module.html             8178 18/08/2025 6:42:45 p. m.
+
+
+
+
+=== ARCHIVOS CSS ===
+
+Name           Length LastWriteTime            
+----           ------ -------------            
+components.css   1175 19/08/2025 1:27:33 p. m. 
+dashboard.css   15178 16/08/2025 10:20:09 p. m.
+login.css         938 19/08/2025 12:28:26 p. m.
+main.css         1424 19/08/2025 1:27:05 p. m. 
+mlc.css          8752 18/08/2025 6:21:14 p. m. 
+
+
+
+
+=== ARCHIVOS JAVASCRIPT ===
+
+Name                    Length LastWriteTime            
+----                    ------ -------------            
+auth.js                   2453 20/08/2025 1:09:49 p. m. 
+dashboard-charts.js      13722 18/08/2025 3:49:05 p. m. 
+dashboard-estudiante.js  19910 20/08/2025 2:15:36 p. m. 
+mlc-charts.js             8647 18/08/2025 7:55:42 p. m. 
+mlc-module.js             5089 19/08/2025 3:20:24 p. m. 
+supabaseClient.js          537 19/08/2025 12:30:42 p. m.
+
+
+
+
+=== LIBRERÍAS EXTERNAS ===
+
+
+=== ASSETS (IMÁGENES, ICONOS) ===
+
+Name   Length LastWriteTime           
+----   ------ -------------           
+fonts         5/08/2025 10:20:19 p. m.
+icons         5/08/2025 10:19:57 p. m.
+images        5/08/2025 10:20:11 p. m.
+
+
+
+
+=== CONFIGURACIÓN SUPABASE EN ARCHIVOS JS ===
+Buscando referencias a Supabase en archivos JS...
+✅ auth.js contiene configuración de Supabase
+✅ dashboard-charts.js contiene configuración de Supabase
+✅ dashboard-estudiante.js contiene configuración de Supabase
+✅ mlc-charts.js contiene configuración de Supabase
+✅ mlc-module.js contiene configuración de Supabase
+✅ supabaseClient.js contiene configuración de Supabase
+
+=== RESUMEN ESTADÍSTICO ===
+📊 Total archivos HTML: 3
+🎨 Total archivos CSS: 5
+⚡ Total archivos JS: 6
+📚 Total librerías: 0
+🖼️ Total assets: 3
+
+=== ESTRUCTURA COMPLETA ===
+TSP-Sistema/
+├── login.html
+├── README.md
+├── assets/
+│   ├── fonts
+│   ├── icons
+│   ├── images
+├── css/
+│   ├── components.css
+│   ├── dashboard.css
+│   ├── login.css
+│   ├── main.css
+│   ├── mlc.css
+├── js/
+│   ├── auth.js
+│   ├── dashboard-charts.js
+│   ├── dashboard-estudiante.js
+│   ├── mlc-charts.js
+│   ├── mlc-module.js
+│   └── ... y 1 más
+├── libs/
+├── pages/
+│   ├── admin
+│   ├── dashboard-estudiante.html
+│   ├── mlc-module.html
+
+=== ANÁLISIS DE PÁGINAS HTML ===
+📄 CONTENIDO DE login.html:
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>TSP â€¢ Iniciar sesiÃ³n</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Fuentes + Estilos base y componentes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+...
+
+=== ANÁLISIS DE PÁGINAS HTML ===
+📄 CONTENIDO DE login.html:
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>TSP â€¢ Iniciar sesiÃ³n</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Fuentes + Estilos base y componentes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+...
+📄 PÁGINA: dashboard-estudiante.html
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+...
+📄 PÁGINA: mlc-module.html
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+...
+
+=== ANÁLISIS DE ARCHIVOS JAVASCRIPT ===
+⚡ ARCHIVO JS: auth.js
+Tamaño: 2453 bytes
+Funciones/Variables importantes:
+  - import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+  - const CFG = window.__TSP__ || {};
+  - if (!CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY) {
+  -   alert("Falta configuraciÃ³n de Supabase."); throw new Error("Missing Supabase config");
+  - const supabase = createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+
+⚡ ARCHIVO JS: dashboard-charts.js
+Tamaño: 13722 bytes
+Funciones/Variables importantes:
+  -     // === CARGAR DATOS HISTÃ“RICOS DESDE SUPABASE ===
+  -     async loadMlcHistoricalData() {
+  -         const { data, error } = await supabase
+  -     async createWpmChart() {
+  -         const data = await this.loadMlcHistoricalData();
+
+⚡ ARCHIVO JS: dashboard-estudiante.js
+Tamaño: 19910 bytes
+Funciones/Variables importantes:
+  - // Compatibilidad total con: js/mlc-charts.js (auto-init), localStorage/sessionStorage y Supabase v2.
+  - // 3) Muestra Ãºltimo resultado (desde Supabase si estÃ¡ disponible; fallback a localStorage:tsp_last_result).
+  - //  - Cargar Supabase JS v2 por CDN (antes de este archivo): <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  - //  - Si no hay Supabase, el dashboard sigue funcionando con datos locales.
+  - (function(){
+
+⚡ ARCHIVO JS: mlc-charts.js
+Tamaño: 8647 bytes
+Funciones/Variables importantes:
+  -  *  - Supabase JS v2 cargado (CDN) y cliente inicializado en window.supabaseClient o variable global 'supabase'.
+  -  * Este mÃ³dulo es autÃ³nomo: si no encuentra Supabase, usa localStorage:tsp_last_result como fallback para pintar al menos un punto.
+  - (function(){
+  -   const TZ = 'America/Bogota';
+  -   const $ = (s)=>document.querySelector(s);
+
+⚡ ARCHIVO JS: mlc-module.js
+Tamaño: 5089 bytes
+Funciones/Variables importantes:
+  - (function(){
+  -   // Supabase
+  -   const SUPABASE_CONFIG = window.SUPABASE_CONFIG || {
+  -     url: 'https://kryqjsncqsopjuwymhqd.supabase.co',
+  -   (function ensureSupabaseClient(){
+
+⚡ ARCHIVO JS: supabaseClient.js
+Tamaño: 537 bytes
+Funciones/Variables importantes:
+  - const SUPABASE_URL = "https://kryqjsncqsopjuwymhqd.supabase.co";
+  - const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyeXFqc25jcXNvcGp1d3ltaHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMjM3MDEsImV4cCI6MjA2ODg5OTcwMX0.w5HiaFiqlFJ_3QbcprUrufsOXTDWFg1zUMl2J7kWD6Y";
+  - window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+
+
+=== LIBRERÍAS EXTERNAS UTILIZADAS ===
