@@ -1,274 +1,246 @@
-// js/ciclos.js
-import {
-  listarLecturas, listarDesafios, listarJuegos,
-  crearCiclo, publicarCiclo, listarCiclos, duplicarCiclo
-} from './api-ciclos.js';
-import { SUPABASE_URL } from './supabaseClient.js';
+// /js/ciclos.js
+// Módulo de UI para Admin · Ciclos
+// Rutas de buckets:
+// - Lecturas:  tsp-lecturas/grado-{G}/ciclo-{C}/g{G}c{C}.pdf
+// - Desafíos:  tsp-desafios/grado-{G}/ciclo-{C}/dcg{G}c{C}.pdf
 
-/* ====== Guard Admin ====== */
-(function ensureAdmin() {
-  const read = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
-  const sA = read('tsp_admin_session');
-  const sU = read('tsp_user_session');
-  const role = String(
-    sA?.rol ?? sA?.role ?? sA?.perfil ??
-    sU?.rol ?? sU?.role ?? sU?.perfil ?? ''
-  ).toLowerCase();
-  const isAdmin = (role === 'admin') || (sA?.is_admin === true) || (sU?.is_admin === true);
-  if (!isAdmin) { alert('Acceso solo para Administrador.'); location.href='../../login.html'; }
-})();
+import { supabase } from './supabaseClient.js';
 
-/* ====== DOM ====== */
-const $ = (s, r=document)=>r.querySelector(s);
-const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
-const byId = (id)=>document.getElementById(id);
+// Si ya tienes api-ciclos.js y prefieres centralizar llamadas, puedes usarlo así:
+// import { listarLecturasPorGrado, listarDesafiosPorGrado, listarJuegosPorGrado, crearCicloAdmin } from './api-ciclos.js';
 
-const ui = {
-  grado: byId('grado'),
-  lectura: byId('lectura'), lecturaInfo: byId('lecturasInfo'), btnPrevLec: byId('btnPreviewLectura'),
-  desafio: byId('desafio'), desafioInfo: byId('desafiosInfo'), btnPrevDes: byId('btnPreviewDesafio'),
-  juegos: byId('juegos'),
-  nombre: byId('nombre'), descripcion: byId('descripcion'),
-  btnCrearPublicar: byId('btnCrearPublicar'), btnReset: byId('btnReset'),
-  filtro: byId('filtro'), btnRecargar: byId('btnRecargar'),
-  tbody: byId('tbodyCiclos'), msg: byId('msg'),
-};
-const setMsg = (t='') => (ui.msg && (ui.msg.textContent = t));
+const $ = (q) => document.querySelector(q);
 
-/* ====== Helpers ====== */
-const PUBLIC_BASE = `${SUPABASE_URL}/storage/v1/object/public`;
-const toInt = (x)=> Number.parseInt(String(x||'').trim(), 10) || 0;
+// ====== refs ======
+const gradoSel           = $('#gradoSel');
+const lecturaSel         = $('#lecturaSel');
+const btnPreviewLectura  = $('#btnPreviewLectura');
+const desafioSel         = $('#desafioSel');
+const btnPreviewDesafio  = $('#btnPreviewDesafio');
+const juegosSel          = $('#juegosSel');
+const nombreCicloInput   = $('#nombreCiclo');
+const descCicloInput     = $('#descCiclo');
+const btnCrear           = $('#btnCrear');
+const btnLimpiar         = $('#btnLimpiar');
 
-function buildLecturaPath(grado, numero) {
-  const g = toInt(grado), n = toInt(numero);
-  return `tsp-lecturas/grado-${g}/ciclo-${n}/g${g}c${n}.pdf`;
-}
-function buildDesafioPath(grado, numero) {
-  const g = toInt(grado), n = toInt(numero);
-  return `tsp-desafios/grado-${g}/ciclo-${n}/dcg${g}c${n}.pdf`;
-}
-function buildLecturaURL(grado, numero) {
-  return `${PUBLIC_BASE}/${buildLecturaPath(grado, numero)}`;
-}
-function buildDesafioURL(grado, numero) {
-  return `${PUBLIC_BASE}/${buildDesafioPath(grado, numero)}`;
-}
-function getSelectedNumero(selectEl) {
-  const opt = selectEl.options[selectEl.selectedIndex];
-  return opt?.dataset?.num ? Number(opt.dataset.num) : 0;
+// ====== helpers UI ======
+function opt(value, label, extra = {}) {
+  const o = document.createElement('option');
+  o.value = value ?? '';
+  o.textContent = label ?? '';
+  Object.entries(extra).forEach(([k, v]) => o.dataset[k] = v);
+  return o;
 }
 
-/* Verifica si un objeto existe en Storage (HEAD) */
-async function urlExists(url) {
-  try {
-    const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-/* ====== Preview con verificación ====== */
-async function openPreviewLectura() {
-  const grado = ui.grado.value;
-  const numero = getSelectedNumero(ui.lectura);
-  if (!grado || !numero) return alert('Selecciona grado y lectura.');
-
-  const g = toInt(grado), n = toInt(numero);
-  const url = buildLecturaURL(g, n);
-
-  if (await urlExists(url)) {
-    window.open(url, '_blank', 'noopener');
-  } else {
-    const fullPath = buildLecturaPath(g, n);
-    alert(
-`Archivo no encontrado (404).
-Sube el PDF con esta ruta COMPLETA:
-
-${fullPath}
-
-Ejemplo existente:
-tsp-lecturas/grado-3/ciclo-1/g3c1.pdf`
-    );
-  }
-}
-
-async function openPreviewDesafio() {
-  const grado = ui.grado.value;
-  const numero = getSelectedNumero(ui.desafio);
-  if (!grado || !numero) return alert('Selecciona grado y desafío.');
-
-  const g = toInt(grado), n = toInt(numero);
-  const url = buildDesafioURL(g, n);
-
-  if (await urlExists(url)) {
-    window.open(url, '_blank', 'noopener');
-  } else {
-    const fullPath = buildDesafioPath(g, n);
-    alert(
-`Archivo no encontrado (404).
-Sube el PDF con esta ruta COMPLETA:
-
-${fullPath}
-
-Ejemplo existente:
-tsp-desafios/grado-3/ciclo-1/dcg3c1.pdf`
-    );
-  }
-}
-
-/* ====== Renders ====== */
-function renderOptions(selectEl, items, map) {
-  selectEl.innerHTML = '';
-  const def = document.createElement('option'); def.value=''; def.textContent='Selecciona…';
-  selectEl.appendChild(def);
-  items.forEach((it, i) => {
-    const opt = document.createElement('option');
-    const { value, label, numero } = map(it, i);
-    opt.value = value; opt.textContent = label;
-    if (numero != null) opt.dataset.num = numero; else opt.dataset.num = String(i+1);
-    selectEl.appendChild(opt);
+function fillSelect(sel, items, { placeholder = '— Selecciona —', getValue, getLabel, getData } = {}) {
+  sel.innerHTML = '';
+  sel.appendChild(opt('', placeholder));
+  (items || []).forEach(it => {
+    sel.appendChild(opt(getValue(it), getLabel(it), getData ? getData(it) : {}));
   });
-  selectEl.value = '';
+  sel.dispatchEvent(new Event('change'));
 }
 
-function renderJuegos(juegos) {
-  ui.juegos.innerHTML = '';
-  const group = {}; juegos.forEach(j => (group[j.habilidad] ||= []).push(j));
-  Object.entries(group).forEach(([hab, list])=>{
-    const head = document.createElement('div'); head.style.margin='4px 0';
-    head.innerHTML = `<span class="chip"><b>${hab}</b> • ${list.length}</span>`;
-    ui.juegos.appendChild(head);
-    list.forEach(j=>{
-      const line = document.createElement('label');
-      line.style.display='flex'; line.style.alignItems='center'; line.style.gap='8px'; line.style.padding='4px';
-      line.innerHTML = `<input type="checkbox" data-id="${j.id}"><span>${j.nombre}</span><span class="chip">${hab}</span>`;
-      ui.juegos.appendChild(line);
-    });
-  });
+function fillMultiSelect(sel, items, { getValue, getLabel }) {
+  sel.innerHTML = '';
+  (items || []).forEach(it => sel.appendChild(opt(getValue(it), getLabel(it))));
 }
 
-/* ====== Carga de catálogos ====== */
-async function cargarCatalogos(grado) {
-  ui.btnPrevLec.disabled = true; ui.btnPrevDes.disabled = true;
-  if (!grado) { ui.lectura.innerHTML=''; ui.desafio.innerHTML=''; ui.juegos.innerHTML=''; return; }
-  setMsg('Cargando catálogos…');
+// ====== grados fijos (1°..11° y Profesional=12) ======
+const grados = [
+  { g:1,  label:'1°' }, { g:2,  label:'2°' }, { g:3,  label:'3°' },
+  { g:4,  label:'4°' }, { g:5,  label:'5°' }, { g:6,  label:'6°' },
+  { g:7,  label:'7°' }, { g:8,  label:'8°' }, { g:9,  label:'9°' },
+  { g:10, label:'10°' },{ g:11, label:'11°' },{ g:12, label:'Profesional' },
+];
+
+// ====== llamadas a BD (RPC) ======
+// Notas:
+// - Estas funciones asumen que existen las RPC con firma INT canonizada:
+//   admin_listar_lecturas(p_grado int)
+//   admin_listar_desafios(p_grado int)
+//   admin_listar_juegos(p_grado int)
+// Si tus nombres difieren, cámbialos aquí mismo.
+
+async function rpcLecturas(grado) {
+  const { data, error } = await supabase.rpc('admin_listar_lecturas', { p_grado: grado });
+  if (error) throw error;
+  return data || [];
+}
+
+async function rpcDesafios(grado) {
+  const { data, error } = await supabase.rpc('admin_listar_desafios', { p_grado: grado });
+  if (error) throw error;
+  return data || [];
+}
+
+async function rpcJuegos(grado) {
+  const { data, error } = await supabase.rpc('admin_listar_juegos', { p_grado: grado });
+  if (error) throw error;
+  return data || [];
+}
+
+async function rpcCrearCiclo(payload) {
+  // Si ya tienes una function admin_ciclo_crear + publicar, úsala.
+  // Aquí como ejemplo simple: insert directo a `ciclos` + `ciclo_juegos`.
+  const { data, error } = await supabase.rpc('admin_ciclo_crear_publicar', payload);
+  if (error) throw error;
+  return data;
+}
+
+// ====== preview helpers ======
+function parseNumeroDesdeTextoOData(optionEl) {
+  // Preferimos data-numero si existe; si no, parseamos "15. Titulo..."
+  const num = optionEl?.dataset?.numero;
+  if (num) return parseInt(num, 10);
+  const txt = optionEl?.textContent || '';
+  const m = txt.match(/^\s*(\d+)\s*\./);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function abrirPreviewLectura(grado, lecturaOption) {
+  const numero = parseNumeroDesdeTextoOData(lecturaOption);
+  if (!numero) {
+    alert('No pude inferir el número de la lectura (gXcY). Verifica el texto ("15. Título...").');
+    return;
+  }
+  const url = `${location.origin.replace('127.0.0.1:5500','kryqjsncqsopjuwymhqd.supabase.co')}/storage/v1/object/public/tsp-lecturas/grado-${grado}/ciclo-${numero}/g${grado}c${numero}.pdf`;
+  window.open(url, '_blank', 'noopener');
+}
+
+function abrirPreviewDesafio(grado, desafioOption) {
+  // Para desafío usamos el mismo número que el "ciclo" (si tu dropdown ya trae "Ciclo 1", etc.,
+  // también puedes guardar data-numero en la opción).
+  const numero = parseNumeroDesdeTextoOData(desafioOption) || 1;
+  const url = `${location.origin.replace('127.0.0.1:5500','kryqjsncqsopjuwymhqd.supabase.co')}/storage/v1/object/public/tsp-desafios/grado-${grado}/ciclo-${numero}/dcg${grado}c${numero}.pdf`;
+  window.open(url, '_blank', 'noopener');
+}
+
+// ====== eventos ======
+gradoSel.addEventListener('change', async () => {
+  const grado = parseInt(gradoSel.value, 10);
+  lecturaSel.disabled = true;
+  desafioSel.disabled = true;
+  juegosSel.disabled  = true;
+  btnPreviewLectura.disabled = true;
+  btnPreviewDesafio.disabled = true;
+
+  if (!grado) {
+    fillSelect(lecturaSel, []);
+    fillSelect(desafioSel, []);
+    fillMultiSelect(juegosSel, []);
+    return;
+  }
+
   try {
     const [lecturas, desafios, juegos] = await Promise.all([
-      listarLecturas(grado), listarDesafios(grado), listarJuegos(grado)
+      rpcLecturas(grado),
+      rpcDesafios(grado),
+      rpcJuegos(grado),
     ]);
-    // lecturas
-    renderOptions(ui.lectura, lecturas, (l)=>({
-      value: l.id, label: (l.numero? `${l.numero}. `:'') + l.titulo, numero: l.numero ?? null
-    }));
-    ui.lecturaInfo && (ui.lecturaInfo.textContent = `${lecturas.length} lecturas.`);
-    // desafíos
-    renderOptions(ui.desafio, desafios, (d,i)=>({
-      value: d.id, label: d.titulo, numero: d.numero ?? (i+1)
-    }));
-    ui.desafioInfo && (ui.desafioInfo.textContent = `${desafios.length} desafíos.`);
-    renderJuegos(juegos);
-  } catch (e) { console.error(e); alert('Error cargando catálogos (ver consola).'); }
-  finally { setMsg(''); }
-}
 
-/* ====== Listado ====== */
-const fmtDate = (s)=> new Date(s).toLocaleString();
-const juegosCount = (r)=> r.juegos_count ?? (Array.isArray(r.juegos)? r.juegos.length : '-');
+    fillSelect(lecturaSel, lecturas, {
+      placeholder: '— Selecciona —',
+      getValue: (r) => r.id,
+      getLabel: (r) => {
+        // Si viene "numero" desde la RPC, lo mostramos tipo "15. Título"
+        if (r.numero != null) return `${r.numero}. ${r.titulo}`;
+        return r.titulo || '(sin título)';
+      },
+      getData:  (r) => (r.numero != null ? { numero: r.numero } : {}),
+    });
 
-async function cargarCiclos() {
-  try {
-    const rows = await listarCiclos({ filtro: ui.filtro?.value || '' });
-    if (!ui.tbody) return;
-    ui.tbody.innerHTML = rows.map(r=>`
-      <tr>
-        <td>${r.nombre}</td>
-        <td>${r.version ?? '-'}</td>
-        <td>${r.grado}</td>
-        <td>${r.estado === 'publicado' ? `<span class="ok">publicado</span>` : r.estado}</td>
-        <td>${juegosCount(r)}</td>
-        <td>${r.updated_at ? fmtDate(r.updated_at) : '-'}</td>
-        <td><button class="btn btn-light" data-dup="${r.id}">Duplicar</button></td>
-      </tr>
-    `).join('');
-  } catch (e) { console.error(e); alert('Error cargando ciclos.'); }
-}
+    fillSelect(desafioSel, desafios, {
+      placeholder: '— Selecciona —',
+      getValue: (r) => r.id,
+      getLabel: (r) => r.nombre || r.titulo || '(desafío)',
+      getData:  (r) => (r.numero != null ? { numero: r.numero } : {}),
+    });
 
-/* ====== Crear + Publicar ====== */
-const juegosSeleccionados = ()=> $$('#juegos input[type="checkbox"]:checked').map(cb=>cb.dataset.id);
+    fillMultiSelect(juegosSel, juegos, {
+      getValue: (j) => j.id,
+      getLabel: (j) => `${j.habilidad ? `[${j.habilidad}] ` : ''}${j.nombre ?? '(juego)'}`,
+    });
 
-async function onCrearPublicar() {
-  const grado = ui.grado.value, lecturaId = ui.lectura.value, desafioId = ui.desafio.value;
-  const juegosIds = juegosSeleccionados(); const nombre = ui.nombre.value.trim(); const descripcion = ui.descripcion.value.trim();
-  if (!grado) return alert('Selecciona un grado.');
-  if (!lecturaId) return alert('Selecciona una lectura.');
-  if (!desafioId) return alert('Selecciona un desafío.');
-  if (juegosIds.length < 1 || juegosIds.length > 3) return alert('Selecciona entre 1 y 3 juegos.');
-  if (!nombre) return alert('Ingresa un nombre para el ciclo.');
-
-  ui.btnCrearPublicar.disabled = true; setMsg('Creando ciclo…');
-  try {
-    const cicloId = await crearCiclo({ grado, nombre, descripcion, lecturaId, desafioId, juegosIds });
-    setMsg('Publicando ciclo…'); await publicarCiclo(cicloId);
-    setMsg('Ciclo creado y publicado.'); await cargarCiclos();
-  } catch (e) { console.error(e); alert('No se pudo crear/publicar el ciclo (ver consola).'); }
-  finally { ui.btnCrearPublicar.disabled = false; setTimeout(()=>setMsg(''), 1000); }
-}
-
-/* ====== Grados ====== */
-const GRADOS = [
-  { value: '1',  label: '1°' },  { value: '2',  label: '2°' },  { value: '3',  label: '3°' },
-  { value: '4',  label: '4°' },  { value: '5',  label: '5°' },  { value: '6',  label: '6°' },
-  { value: '7',  label: '7°' },  { value: '8',  label: '8°' },  { value: '9',  label: '9°' },
-  { value: '10', label: '10°' }, { value: '11', label: '11°' },
-  { value: '12', label: 'Profesional' }
-];
-function renderOptionsSimple(selectEl, items) {
-  selectEl.innerHTML = '';
-  const def = document.createElement('option'); def.value=''; def.textContent='Selecciona…';
-  selectEl.appendChild(def);
-  items.forEach(it=>{
-    const opt = document.createElement('option');
-    opt.value = it.value; opt.textContent = it.label;
-    selectEl.appendChild(opt);
-  });
-}
-function llenarGrados(){ renderOptionsSimple(ui.grado, GRADOS); }
-
-/* ====== Estado botones Preview ====== */
-function updatePreviewButtonsState() {
-  ui.btnPrevLec.disabled = !ui.lectura.value;
-  ui.btnPrevDes.disabled = !ui.desafio.value;
-}
-
-/* ====== Init ====== */
-function resetWizard() {
-  ui.lectura.innerHTML=''; ui.desafio.innerHTML=''; ui.juegos.innerHTML='';
-  ui.nombre.value=''; ui.descripcion.value='';
-  ui.btnPrevLec.disabled = true; ui.btnPrevDes.disabled = true;
-}
-function wire() {
-  ui.grado.addEventListener('change', ()=> cargarCatalogos(ui.grado.value));
-  ui.btnCrearPublicar.addEventListener('click', onCrearPublicar);
-  ui.btnReset.addEventListener('click', ()=>{ resetWizard(); cargarCatalogos(ui.grado.value); });
-  ui.btnRecargar && ui.btnRecargar.addEventListener('click', cargarCiclos);
-  ui.filtro && ui.filtro.addEventListener('input', ()=>{ clearTimeout(window._t); window._t=setTimeout(cargarCiclos,250); });
-  ui.tbody && ui.tbody.addEventListener('click', async (e)=>{
-    const id = e.target?.dataset?.dup; if (!id) return;
-    try { e.target.disabled = true; await duplicarCiclo(id); await cargarCiclos(); }
-    catch(err){ console.error(err); alert('No se pudo duplicar el ciclo.'); }
-    finally{ e.target.disabled = false; }
-  });
-
-  // Preview enable/disable + click
-  ui.lectura.addEventListener('change', updatePreviewButtonsState);
-  ui.desafio.addEventListener('change', updatePreviewButtonsState);
-  ui.btnPrevLec.addEventListener('click', openPreviewLectura);
-  ui.btnPrevDes.addEventListener('click', openPreviewDesafio);
-}
-
-document.addEventListener('DOMContentLoaded', async ()=>{
-  llenarGrados();
-  await cargarCiclos();
-  wire();
+  } catch (e) {
+    console.error(e);
+    alert('Error cargando catálogos. Revisa consola.');
+  } finally {
+    lecturaSel.disabled = false;
+    desafioSel.disabled = false;
+    juegosSel.disabled  = false;
+  }
 });
+
+lecturaSel.addEventListener('change', () => {
+  btnPreviewLectura.disabled = !(lecturaSel.value);
+});
+desafioSel.addEventListener('change', () => {
+  btnPreviewDesafio.disabled = !(desafioSel.value);
+});
+
+btnPreviewLectura.addEventListener('click', () => {
+  const grado = parseInt(gradoSel.value, 10);
+  const opt = lecturaSel.selectedOptions?.[0];
+  if (!grado || !opt?.value) return;
+  abrirPreviewLectura(grado, opt);
+});
+btnPreviewDesafio.addEventListener('click', () => {
+  const grado = parseInt(gradoSel.value, 10);
+  const opt = desafioSel.selectedOptions?.[0];
+  if (!grado || !opt?.value) return;
+  abrirPreviewDesafio(grado, opt);
+});
+
+btnCrear.addEventListener('click', async () => {
+  const grado = parseInt(gradoSel.value, 10) || null;
+  const lectura_id = lecturaSel.value || null;
+  const desafio_id = desafioSel.value || null;
+
+  // Hasta 3 juegos, o ninguno
+  const juegos_ids = Array.from(juegosSel.selectedOptions).map(o => o.value).slice(0,3);
+  const payload = {
+    p_grado: grado,
+    p_nombre: (nombreCicloInput.value || '').trim(),
+    p_descripcion: (descCicloInput.value || '').trim(),
+    p_lectura_id: lectura_id,
+    p_desafio_id: desafio_id,
+    p_juegos_ids: juegos_ids
+  };
+
+  if (!payload.p_nombre) {
+    alert('Ponle un nombre al ciclo.');
+    return;
+  }
+
+  try {
+    btnCrear.disabled = true;
+    await rpcCrearCiclo(payload);
+    alert('¡Ciclo creado y publicado!');
+  } catch (e) {
+    console.error(e);
+    alert('No se pudo crear el ciclo. Revisa consola.');
+  } finally {
+    btnCrear.disabled = false;
+  }
+});
+
+btnLimpiar.addEventListener('click', () => {
+  gradoSel.value = '';
+  gradoSel.dispatchEvent(new Event('change'));
+  nombreCicloInput.value = '';
+  descCicloInput.value = '';
+});
+
+// ====== init ======
+(function init() {
+  // Cargar grados
+  gradoSel.innerHTML = '';
+  gradoSel.appendChild(opt('', '— Selecciona grado —'));
+  grados.forEach(g => gradoSel.appendChild(opt(g.g, g.label)));
+
+  // Placeholders al arrancar
+  fillSelect(lecturaSel, []);
+  fillSelect(desafioSel, []);
+  fillMultiSelect(juegosSel, []);
+})();

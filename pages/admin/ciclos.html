@@ -2,170 +2,171 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>TSP · Admin · Ciclos</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../css/content.css" />
 
   <style>
     :root{
-      --primary-700:#1d4ed8; --primary-600:#2563eb; --primary-500:#3b82f6;
-      --primary-100:#dbeafe; --primary-50:#eff6ff; --accent:#22c55e;
-      --g-900:#0f172a; --g-800:#1e293b; --g-700:#334155; --g-600:#475569;
-      --g-500:#64748b; --g-400:#94a3b8; --g-300:#cbd5e1; --g-200:#e2e8f0;
-      --g-150:#edf2f7; --g-100:#f1f5f9; --g-50:#f8fafc;
-      --fs-body:14px; --fs-h1:22px; --fs-h3:16px;
-      --space-2:.375rem; --space-3:.5rem; --space-4:.75rem; --space-5:.875rem; --space-6:1rem;
-      --radius-lg:10px; --radius-xl:12px;
-      --shadow-sm:0 1px 2px rgba(0,0,0,.05);
-      --shadow-md:0 4px 14px rgba(0,0,0,.08);
+      --brand:#1E5CFF;
+      --brand-ink:#0F274F;
+      --ink:#263245;
+      --muted:#66758A;
+      --bg:#F6F8FC;
+      --card:#FFFFFF;
+      --ui:#E6EDF7;
+      --line:#E4EAF3;
+      --focus:#AECBFF;
+      --radius:12px;
+      --h1:22px;
+      --h2:15px;
+      --text:14px;
+      --small:12px;
+      --control-h:36px;
     }
-    html,body{height:100%}
-    body{margin:0;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:var(--fs-body);background:var(--g-50);color:var(--g-800)}
-    .header{background:linear-gradient(135deg,var(--primary-600),var(--primary-700));color:#fff;box-shadow:var(--shadow-md);padding:var(--space-5) 0;margin-bottom:var(--space-6)}
-    .container{max-width:1200px;margin:0 auto;padding:0 var(--space-4)}
-    .title{margin:0;font-weight:700;font-size:var(--fs-h1)}
-    .subtitle{opacity:.92;margin:.25rem 0 0}
-    .card{background:#fff;border:1px solid var(--g-200);border-radius:var(--radius-xl);box-shadow:var(--shadow-sm);padding:var(--space-5);margin-bottom:var(--space-5)}
-    .grid{display:grid;gap:var(--space-5)}
-    .row{display:flex;gap:var(--space-4);flex-wrap:wrap;align-items:flex-start}
-    .gap-24{gap:24px;}
-    .col{flex:1 1 300px}
-    .w-240{flex:0 0 240px;max-width:240px}
-    .w-280{flex:0 0 280px;max-width:280px}
-    .w-320{flex:0 0 320px;max-width:320px}
-    .w-420{flex:0 0 420px;max-width:420px}
-    .w-480{flex:0 0 480px;max-width:480px}
-    .stretch{flex:1 1 auto}
-    h3{font-size:var(--fs-h3);margin:0 0 var(--space-3);color:var(--g-900)}
-    .muted{color:var(--g-600);margin:0}
-    .right{margin-left:auto}
-    .form-label{display:block;margin-bottom:var(--space-2);font-weight:600;color:var(--g-700)}
-    .input,.select{
-      width:100%;padding:8px 10px;border:2px solid var(--g-200);
-      border-radius:var(--radius-lg);background:#fff;transition:.15s;line-height:1.1
+
+    html,body{ background:var(--bg); color:var(--ink); font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial; }
+    .wrap{ max-width:1060px; margin:0 auto; padding:18px 16px 56px; }
+
+    .hero{
+      background:linear-gradient(180deg,#1649CC 0%,#0F3AA4 100%);
+      color:#fff; border-radius:12px;
+      padding:16px 18px; margin:0 0 16px;
+      box-shadow:0 6px 18px rgba(15,48,130,.12);
     }
-    .input:focus,.select:focus{outline:none;border-color:var(--primary-500);box-shadow:0 0 0 3px var(--primary-100)}
-    .list{max-height:220px;overflow:auto;background:#fff;border:1px solid var(--g-200);border-radius:var(--radius-lg);padding:var(--space-3)}
-    .chip{display:inline-block;background:var(--primary-50);color:var(--primary-700);border-radius:9999px;padding:2px 8px;font-size:12px}
-    .btn{border:0;border-radius:10px;padding:7px 12px;font-weight:600;cursor:pointer;font-size:13px;line-height:1.1}
-    .btn-primary{background:var(--primary-600);color:#fff}
-    .btn-primary:hover{background:var(--primary-700)}
-    .btn-light{background:#eef3ff;color:#1b2d6b;border:1px solid #d7dffb}
-    .btn-ghost{background:transparent;border:1px solid var(--g-300);color:var(--g-700)}
-    .btn-mini{padding:6px 10px;border:1px solid var(--g-300);background:#fff}
-    table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--g-200);border-radius:10px;overflow:hidden;font-size:13px}
-    th,td{padding:8px 10px;border-bottom:1px solid var(--g-200);text-align:left}
-    th{background:var(--primary-50);color:var(--g-900);font-weight:600}
-    tr:hover td{background:#fafafa}
-    .ok{color:var(--accent);font-weight:700}
-    .inline{display:flex;gap:10px;align-items:center}
-    .inline .select{flex:1 1 auto}
+    .hero h1{ font-size:22px; margin:0 0 4px; font-weight:700; letter-spacing:.2px; }
+    .subtitle{ opacity:.9; font-size:14px; }
+
+    .card{
+      background:var(--card); border:1px solid var(--line);
+      border-radius:12px; padding:14px; margin:0 0 12px;
+      box-shadow:0 1px 0 rgba(16,24,40,.02);
+    }
+    .card h2{ font-size:15px; font-weight:700; color:var(--brand-ink); margin:0 0 10px; letter-spacing:.2px; }
+
+    label{ display:block; font-size:12.5px; color:var(--muted); margin:0 0 6px; }
+
+    select, input[type="text"], textarea{
+      width:100%; border:1px solid var(--ui);
+      border-radius:10px; background:#fff; padding:8px 10px; outline:none;
+      transition:border-color .15s, box-shadow .15s;
+    }
+    select{ height:36px; padding:0 10px; }
+    textarea{ min-height:36px; resize:vertical; }
+    select:focus, input[type="text"]:focus, textarea:focus{ border-color:var(--brand); box-shadow:0 0 0 3px var(--focus); }
+    select:disabled, input:disabled, textarea:disabled{ background:#F4F7FC; color:#8A98AD; }
+
+    .inline{ display:flex; gap:10px; align-items:center; }
+    .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+    .grid-2 > *{ min-width:0; } /* evita desbordes de inputs/textarea */
+
+    .hints{ color:var(--muted); font-size:12px; margin-top:6px; }
+
+    .narrow{ max-width:360px; }
+    @media (max-width:760px){ .narrow{ max-width:none; width:100%; } .grid-2{ grid-template-columns:1fr; } }
+
+    #juegosSel{ min-height:110px; }
+
+    .btn{
+      height:36px; border-radius:10px; padding:0 14px;
+      border:1px solid transparent; font-weight:700; letter-spacing:.2px;
+      cursor:pointer; transition:transform .02s, box-shadow .15s, background .15s, border-color .15s;
+      user-select:none;
+    }
+    .btn:active{ transform:translateY(1px); }
+    .btn-primary{ background:var(--brand); color:#fff; border-color:var(--brand); box-shadow:0 6px 16px rgba(30,92,255,.18); }
+    .btn-primary:hover{ filter:brightness(.98); }
+    .btn-outline{ background:#fff; color:var(--ink); border-color:var(--ui); }
+    .btn-outline:hover{ border-color:var(--brand); }
+    .btn-light{ background:#F4F7FD; color:var(--ink); border-color:var(--ui); }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; box-shadow:none; }
+    .actions{ display:flex; gap:10px; margin-top:10px; }
+
+    /* --- Fix: evitar que "Descripción" se salga del card --- */
+*, *::before, *::after { box-sizing: border-box; }
+
+.card { overflow: hidden; }                 /* corta cualquier “salida” accidental */
+.grid-2 {                                   /* columnas que sí pueden encogerse */
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  gap: 16px;                                /* un poco menos de separación */
+}
+.grid-2 > * { min-width: 0; }               /* permite que los hijos no fuercen ancho */
+
+input[type="text"], select, textarea {
+  max-width: 100%;                          /* nunca más anchos que su columna */
+}
+
   </style>
 </head>
-
 <body>
-  <header class="header">
-    <div class="container">
-      <h1 class="title">Ciclos (Admin)</h1>
+  <div class="wrap">
+
+    <header class="hero">
+      <h1>Ciclos (Admin)</h1>
       <p class="subtitle">Wizard de creación (5 pasos) y listado con acciones.</p>
-    </div>
-  </header>
+    </header>
 
-  <main class="container">
-    <section class="card grid">
-      <h3>1. Grado</h3>
-      <div class="row">
-        <div class="w-280">
-          <label class="form-label">Grado</label>
-          <select id="grado" class="select"></select>
-          <p class="muted">Filtra lecturas, desafíos y juegos.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="row">
-      <div class="card w-480">
-        <h3>2. Lectura</h3>
-        <div class="inline">
-          <select id="lectura" class="select"></select>
-          <button id="btnPreviewLectura" class="btn btn-mini" disabled>Preview</button>
-        </div>
-        <p id="lecturasInfo" class="muted"></p>
-      </div>
-      <div class="card w-480">
-        <h3>3. Desafío</h3>
-        <div class="inline">
-          <select id="desafio" class="select"></select>
-          <button id="btnPreviewDesafio" class="btn btn-mini" disabled>Preview</button>
-        </div>
-        <p id="desafiosInfo" class="muted"></p>
-      </div>
-    </section>
-
+    <!-- 1. Grado -->
     <section class="card">
-      <h3>4. Juegos (1–3)</h3>
-      <div id="juegos" class="list"></div>
-      <p class="muted">Selecciona de 1 a 3 juegos.</p>
-    </section>
-
-    <section class="card grid">
-      <h3>5. Resumen</h3>
-      <div class="row gap-24">
-        <div class="w-420">
-          <label class="form-label">Nombre del ciclo</label>
-          <input id="nombre" class="input" placeholder="Ej. Ciclo grado 5 - Agosto">
+      <h2>1. Grado</h2>
+      <div class="inline" style="justify-content:space-between; align-items:flex-end;">
+        <div>
+          <label for="gradoSel">Grado</label>
+          <select id="gradoSel" class="narrow"></select>
         </div>
-        <div class="w-420">
-          <label class="form-label">Descripción (opcional)</label>
-          <input id="descripcion" class="input" placeholder="Notas internas">
+        <div class="hints" style="margin-left:12px;">Filtra lecturas, desafíos y juegos.</div>
+      </div>
+    </section>
+
+    <!-- 2 y 3 -->
+    <section class="grid-2">
+      <div class="card">
+        <h2>2. Lectura</h2>
+        <div class="inline">
+          <select id="lecturaSel" style="flex:1"></select>
+          <button id="btnPreviewLectura" class="btn btn-outline" disabled>Preview</button>
         </div>
-        <div class="stretch"></div>
+        <p class="hints">El PDF se abrirá en una pestaña nueva.</p>
       </div>
-      <div class="row" style="align-items:center">
-        <button id="btnCrearPublicar" class="btn btn-primary">Crear y publicar</button>
-        <button id="btnReset" class="btn btn-ghost">Limpiar</button>
-        <span id="msg" class="muted right"></span>
+
+      <div class="card">
+        <h2>3. Desafío</h2>
+        <div class="inline">
+          <select id="desafioSel" style="flex:1"></select>
+          <button id="btnPreviewDesafio" class="btn btn-outline" disabled>Preview</button>
+        </div>
       </div>
     </section>
 
-    <section class="card grid">
-      <div class="row" style="align-items:center">
-        <h3 style="margin:0">Listado de Ciclos</h3>
-        <button id="btnRecargar" class="btn btn-light right">Recargar</button>
-      </div>
-      <input id="filtro" class="input w-320" placeholder="Buscar por nombre/estado/grado">
-      <table>
-        <thead>
-          <tr><th>Nombre</th><th>Versión</th><th>Grado</th><th>Estado</th><th>Juegos</th><th>Actualizado</th><th>Acciones</th></tr>
-        </thead>
-        <tbody id="tbodyCiclos"></tbody>
-      </table>
-      <p class="muted">En “Asignación” solo aparecen los ciclos <b>publicados</b>.</p>
+    <!-- 4. Juegos -->
+    <section class="card">
+      <h2>4. Juegos (0–3)</h2>
+      <label for="juegosSel">Selecciona hasta 3 juegos</label>
+      <select id="juegosSel" multiple size="5"></select>
+      <p class="hints">Puedes crear ciclos sólo con lectura, sólo con desafío, sólo con juegos… o cualquier combinación.</p>
     </section>
-  </main>
 
-  <script>
-    (function () {
-      try {
-        const sA = JSON.parse(localStorage.getItem('tsp_admin_session') || 'null');
-        const sU = JSON.parse(localStorage.getItem('tsp_user_session') || 'null');
-        const role = String(
-          sA?.rol ?? sA?.role ?? sA?.perfil ??
-          sU?.rol ?? sU?.role ?? sU?.perfil ?? ''
-        ).toLowerCase();
-        const ok = (role === 'admin') || (sA?.is_admin === true) || (sU?.is_admin === true);
-        if (ok && !sA) {
-          localStorage.setItem('tsp_admin_session', JSON.stringify({
-            id: sU?.id || 'admin', rol:'admin', role:'admin', perfil:'admin', is_admin:true,
-            exp: Date.now() + 8*3600*1000
-          }));
-        }
-      } catch {}
-    })();
-  </script>
+    <!-- 5. Resumen -->
+    <section class="card">
+      <h2>5. Resumen</h2>
+      <div class="grid-2">
+        <div>
+          <label for="nombreCiclo">Nombre del ciclo</label>
+          <input id="nombreCiclo" type="text" placeholder="Ej. Ciclo grado 5 · Agosto" maxlength="80" />
+        </div>
+        <div>
+          <label for="descCiclo">Descripción (opcional)</label>
+          <textarea id="descCiclo" placeholder="Notas internas" rows="2" maxlength="250"></textarea>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="btnCrear" class="btn btn-primary">Crear y publicar</button>
+        <button id="btnLimpiar" class="btn btn-light">Limpiar</button>
+      </div>
+    </section>
+
+  </div>
 
   <script type="module" src="../../js/ciclos.js"></script>
 </body>
