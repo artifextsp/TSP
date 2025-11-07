@@ -50,10 +50,9 @@ select:focus,input:focus{outline:none;border-color:#667eea}
 </style>
 </head>
 <body>
-
 <div class="container">
     <h1>Generador de Informes PDF - Thinking Skills</h1>
-    
+   
     <!-- FILTROS -->
     <div class="filters">
         <div>
@@ -87,9 +86,7 @@ select:focus,input:focus{outline:none;border-color:#667eea}
             <button class="btn" onclick="buscarEstudiantes()">Buscar Estudiantes</button>
         </div>
     </div>
-
     <div id="mensaje"></div>
-
     <!-- TABLA DE ESTUDIANTES -->
     <div id="resultados" style="display:none">
         <h2 style="margin:20px 0">Estudiantes Encontrados: <span id="totalEstudiantes">0</span></h2>
@@ -114,7 +111,6 @@ select:focus,input:focus{outline:none;border-color:#667eea}
         </table>
     </div>
 </div>
-
 <!-- MODAL VISTA PREVIA -->
 <div id="previewModal" class="preview-modal">
     <div class="preview-content">
@@ -128,15 +124,12 @@ select:focus,input:focus{outline:none;border-color:#667eea}
         </div>
     </div>
 </div>
-
 <div class="footer">
     Designed by <strong>Hansel Peña Diaz</strong> - 3143090748
 </div>
-
 <script>
 const URL = 'https://rxqiimwqlisnurgmtmtw.supabase.co/rest/v1';
 const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4cWlpbXdxbGlzbnVyZ210bXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MjcyNzcsImV4cCI6MjA3NzAwMzI3N30.meJx3YvbvwQJHvfLs52DZ9LppSJIVbBvyAVPqJfi9wg';
-
 let estudiantesActuales = [];
 let estudiantePreview = null;
 
@@ -175,7 +168,7 @@ function getEstadoMensualidad(estado) {
     return { texto: 'PENDIENTE', color: 'rojo' };
 }
 
-// === NUEVA FUNCIÓN: calcularVocabularioPreview ===
+// === FUNCIÓN PARA CALCULAR VOCABULARIO EN PREVIEW ===
 function calcularVocabularioPreview(lectura) {
     if (lectura.preguntas_vocabulario_totales && lectura.preguntas_vocabulario_totales > 0) {
         const porcentaje = Math.round((lectura.preguntas_vocabulario_correctas / lectura.preguntas_vocabulario_totales) * 100);
@@ -190,7 +183,7 @@ async function cargarInstituciones() {
             headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
         });
         const instituciones = await r.json();
-        
+       
         const select = document.getElementById('filterInstitucion');
         instituciones.forEach(inst => {
             const option = document.createElement('option');
@@ -207,34 +200,34 @@ async function buscarEstudiantes() {
     const institucion = document.getElementById('filterInstitucion').value;
     const grado = document.getElementById('filterGrado').value;
     const ciclo = document.getElementById('filterCiclo').value;
-    
+   
     if (!ciclo) {
         return mostrarMsg('Debe seleccionar un ciclo', 'error');
     }
-    
+   
     mostrarMsg('Buscando estudiantes...', 'info');
-    
+   
     try {
         let query = `${URL}/estudiantes?select=*`;
-        
+       
         if (institucion) query += `&codigo_institucion=eq.${institucion}`;
         if (grado) query += `&grado=eq.${grado}`;
-        
+       
         const r = await fetch(query, {
             headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
         });
         const estudiantes = await r.json();
-        
+       
         if (!estudiantes || estudiantes.length === 0) {
             mostrarMsg('No se encontraron estudiantes con los filtros seleccionados', 'error');
             document.getElementById('resultados').style.display = 'none';
             return;
         }
-        
+       
         estudiantesActuales = estudiantes;
         mostrarTablaEstudiantes(estudiantes, ciclo);
         mostrarMsg(`${estudiantes.length} estudiante(s) encontrado(s)`, 'success');
-        
+       
     } catch (e) {
         console.error(e);
         mostrarMsg('Error al buscar estudiantes: ' + e.message, 'error');
@@ -244,10 +237,10 @@ async function buscarEstudiantes() {
 async function mostrarTablaEstudiantes(estudiantes, ciclo) {
     const tbody = document.querySelector('#tablaEstudiantes tbody');
     tbody.innerHTML = '';
-    
+   
     document.getElementById('totalEstudiantes').textContent = estudiantes.length;
     document.getElementById('resultados').style.display = 'block';
-    
+   
     // Obtener instituciones
     const rInst = await fetch(`${URL}/instituciones?select=*`, {
         headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
@@ -255,7 +248,7 @@ async function mostrarTablaEstudiantes(estudiantes, ciclo) {
     const instituciones = await rInst.json();
     const instMap = {};
     instituciones.forEach(i => instMap[i.codigo_institucion] = i.nombre);
-    
+   
     estudiantes.forEach(est => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -279,17 +272,17 @@ async function mostrarTablaEstudiantes(estudiantes, ciclo) {
 
 async function verPrevia(codigo, ciclo) {
     mostrarMsg('Cargando vista previa...', 'info');
-    
+   
     try {
         const datos = await obtenerDatosEstudiante(codigo, ciclo);
         if (!datos) return;
-        
+       
         estudiantePreview = { codigo, ciclo, datos };
-        
+       
         const html = generarHTMLPreview(datos);
         document.getElementById('previewContent').innerHTML = html;
         document.getElementById('previewModal').style.display = 'block';
-        
+       
     } catch (e) {
         mostrarMsg('Error al cargar vista previa: ' + e.message, 'error');
     }
@@ -298,10 +291,10 @@ async function verPrevia(codigo, ciclo) {
 function generarHTMLPreview(datos) {
     const { estudiante, mensualidad, lectura, desafio, aplicaciones } = datos;
     const estadoMens = getEstadoMensualidad(mensualidad.estado);
-    
+   
     let html = `
         <h2 style="color:#667eea;text-align:center;margin-bottom:30px">INFORME THINKING SKILLS PROGRAM</h2>
-        
+       
         <div class="section-title">DATOS DEL ESTUDIANTE</div>
         <div class="info-row">
             <div><span class="info-label">Nombre:</span> ${estudiante.nombre} ${estudiante.apellidos}</div>
@@ -316,12 +309,12 @@ function generarHTMLPreview(datos) {
             <div><span class="info-label">Fecha:</span> ${new Date().toLocaleDateString('es-CO')}</div>
         </div>
     `;
-    
+   
     if (lectura) {
         const velColor = lectura.velocidad_simple >= 100 ? 'verde' : 'rojo';
         const compColor = lectura.comprension >= 70 ? 'verde' : 'rojo';
         const velEfColor = lectura.velocidad_efectiva >= 70 ? 'verde' : 'rojo';
-        
+       
         html += `
             <div class="section-title">LECTURA CRITICA</div>
             <div class="info-row">
@@ -334,17 +327,19 @@ function generarHTMLPreview(datos) {
             </div>
             <div class="info-row" style="margin-top:15px">
                 <div><span class="info-label">Velocidad Simple:</span> <span class="status-badge status-${velColor}">${lectura.velocidad_simple} p/m</span></div>
-                <div><span class="info-label">Comprensión:</span> <span class="status-badge status-${compColor}">${lectura.comprension}%</span></div>
+                <!-- CAMBIO 1: COMPRENSIÓN CON ACIERTOS -->
+                <div><span class="info-label">Comprensión:</span> <span class="status-badge status-${compColor}">${lectura.preguntas_correctas || 0}/${lectura.preguntas_totales || 0} - ${lectura.comprension}%</span></div>
             </div>
             <div class="info-row">
-                <div><span class="info-label">Vocabulario:</span> <span class="status-badge status-azul">${calcularVocabularioPreview(lectura)}</span></div>
+                <!-- CAMBIO 2: VOCABULARIO CON ACIERTOS -->
+                <div><span class="info-label">Vocabulario:</span> <span class="status-badge status-azul">${lectura.preguntas_vocabulario_correctas || 0}/${lectura.preguntas_vocabulario_totales || 0} - ${calcularVocabularioPreview(lectura)}</span></div>
             </div>
             <div class="info-row">
                 <div><span class="info-label">Velocidad Efectiva:</span> <span class="status-badge status-${velEfColor}">${lectura.velocidad_efectiva}</span></div>
             </div>
         `;
     }
-    
+   
     if (desafio) {
         const desColor = desafio.porcentaje >= 70 ? 'verde' : 'rojo';
         html += `
@@ -355,7 +350,7 @@ function generarHTMLPreview(datos) {
             </div>
         `;
     }
-    
+   
     if (aplicaciones && aplicaciones.length > 0) {
         html += `<div class="section-title">APLICACIONES BRAIN TRAINING</div>`;
         aplicaciones.forEach((app, i) => {
@@ -372,7 +367,7 @@ function generarHTMLPreview(datos) {
             `;
         });
     }
-    
+   
     return html;
 }
 
@@ -388,7 +383,7 @@ async function obtenerDatosEstudiante(codigo, ciclo) {
             return null;
         }
         const estudiante = estudiantes[0];
-        
+       
         // Mensualidad
         const mesActual = new Date().toISOString().slice(0, 7);
         const rMens = await fetch(`${URL}/mensualidades?codigo_estudiante=eq.${codigo}&mes=eq.${mesActual}`, {
@@ -396,29 +391,29 @@ async function obtenerDatosEstudiante(codigo, ciclo) {
         });
         const mensualidades = await rMens.json();
         const mensualidad = mensualidades && mensualidades.length > 0 ? mensualidades[0] : { estado: 'pendiente' };
-        
+       
         // Lectura
         const rLec = await fetch(`${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&ciclo=eq.${ciclo}`, {
             headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
         });
         const lecturas = await rLec.json();
         const lectura = lecturas && lecturas.length > 0 ? lecturas[0] : null;
-        
+       
         // Desafío
         const rDes = await fetch(`${URL}/steam_desafios?codigo_estudiante=eq.${codigo}&ciclo=eq.${ciclo}`, {
             headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
         });
         const desafios = await rDes.json();
         const desafio = desafios && desafios.length > 0 ? desafios[0] : null;
-        
+       
         // Aplicaciones
         const rApp = await fetch(`${URL}/aplicaciones?codigo_estudiante=eq.${codigo}&ciclo=eq.${ciclo}`, {
             headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
         });
         const aplicaciones = await rApp.json() || [];
-        
+       
         return { estudiante, mensualidad, lectura, desafio, aplicaciones };
-        
+       
     } catch (e) {
         console.error(e);
         mostrarMsg('Error al obtener datos: ' + e.message, 'error');
@@ -448,14 +443,14 @@ async function enviarEmailDesdePreview() {
 
 async function generarPDFIndividual(codigo, ciclo) {
     mostrarMsg('Generando PDF...', 'info');
-    
+   
     try {
         const datos = await obtenerDatosEstudiante(codigo, ciclo);
         if (!datos) return;
-        
+       
         await crearPDF(datos, ciclo);
         mostrarMsg('PDF generado exitosamente', 'success');
-        
+       
     } catch (e) {
         mostrarMsg('Error al generar PDF: ' + e.message, 'error');
     }
@@ -467,7 +462,7 @@ async function crearPDF(datos, ciclo) {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     let y = 20;
-    
+   
     // ENCABEZADO
     doc.setFillColor(102, 126, 234);
     doc.rect(0, 0, pageWidth, 40, 'F');
@@ -478,10 +473,10 @@ async function crearPDF(datos, ciclo) {
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text(`Fecha: ${new Date().toLocaleDateString('es-CO')} | Ciclo: ${ciclo}`, pageWidth / 2, 25, { align: 'center' });
-    
+   
     y = 50;
     doc.setTextColor(0, 0, 0);
-    
+   
     // ESTUDIANTE
     doc.setFontSize(13);
     doc.setFont(undefined, 'bold');
@@ -495,7 +490,7 @@ async function crearPDF(datos, ciclo) {
     doc.text(`Grado: ${estudiante.grado}`, 110, y);
     y += 5;
     doc.text(`Edad: ${estudiante.edad || 'N/A'} anos`, 14, y);
-    
+   
     const estadoMens = getEstadoMensualidad(mensualidad.estado);
     doc.text(`Estado Mensualidad: `, 110, y);
     doc.setTextColor(estadoMens.color === 'verde' ? 39 : 231, estadoMens.color === 'verde' ? 174 : 76, estadoMens.color === 'verde' ? 96 : 60);
@@ -503,9 +498,9 @@ async function crearPDF(datos, ciclo) {
     doc.text(estadoMens.texto, 155, y);
     doc.setTextColor(0, 0, 0);
     doc.setFont(undefined, 'normal');
-    
+   
     y += 10;
-    
+   
     // LECTURA
     if (lectura) {
         doc.setFillColor(227, 242, 253);
@@ -514,7 +509,7 @@ async function crearPDF(datos, ciclo) {
         doc.setFont(undefined, 'bold');
         doc.text('LECTURA CRITICA', 16, y + 5);
         y += 10;
-        
+       
         doc.setFontSize(9);
         doc.setFont(undefined, 'normal');
         doc.text(`Titulo: ${lectura.titulo_lectura || 'N/A'}`, 14, y);
@@ -524,7 +519,7 @@ async function crearPDF(datos, ciclo) {
         doc.text(`Palabras: ${lectura.word_count || 'N/A'}`, 14, y);
         doc.text(`Tiempo: ${lectura.tiempo_minutos || 'N/A'} min`, 80, y);
         y += 6;
-        
+       
         const velColor = lectura.velocidad_simple >= 100 ? '#27ae60' : '#e74c3c';
         doc.text(`Velocidad Simple: `, 14, y);
         doc.setTextColor(velColor === '#27ae60' ? 39 : 231, velColor === '#27ae60' ? 174 : 76, velColor === '#27ae60' ? 96 : 60);
@@ -533,16 +528,18 @@ async function crearPDF(datos, ciclo) {
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'normal');
         y += 4;
-        
+       
+        // CAMBIO 3: COMPRENSIÓN CON ACIERTOS
         const compColor = getColor(lectura.comprension);
         doc.text(`Comprension: `, 14, y);
         doc.setTextColor(compColor === '#27ae60' ? 39 : 231, compColor === '#27ae60' ? 174 : 76, compColor === '#27ae60' ? 96 : 60);
         doc.setFont(undefined, 'bold');
-        doc.text(`${lectura.comprension}%`, 42, y);
+        doc.text(`${lectura.preguntas_correctas || 0}/${lectura.preguntas_totales || 0} - ${lectura.comprension}%`, 42, y);
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'normal');
         y += 4;
-        
+       
+        // CAMBIO 4: VELOCIDAD EFECTIVA + VOCABULARIO EN PDF
         const velEfColor = getColor(lectura.velocidad_efectiva >= 70 ? 70 : 50);
         doc.text(`Velocidad Efectiva: `, 14, y);
         doc.setTextColor(velEfColor === '#27ae60' ? 39 : 231, velEfColor === '#27ae60' ? 174 : 76, velEfColor === '#27ae60' ? 96 : 60);
@@ -550,10 +547,24 @@ async function crearPDF(datos, ciclo) {
         doc.text(`${lectura.velocidad_efectiva}`, 50, y);
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'normal');
-        
+        y += 4;
+
+        // AGREGAR VOCABULARIO
+        if (lectura.preguntas_vocabulario_totales && lectura.preguntas_vocabulario_totales > 0) {
+            const vocabPorcentaje = Math.round((lectura.preguntas_vocabulario_correctas / lectura.preguntas_vocabulario_totales) * 100);
+            const vocabColor = getColor(vocabPorcentaje);
+            doc.text(`Vocabulario: `, 14, y);
+            doc.setTextColor(vocabColor === '#27ae60' ? 39 : 231, vocabColor === '#27ae60' ? 174 : 76, vocabColor === '#27ae60' ? 96 : 60);
+            doc.setFont(undefined, 'bold');
+            doc.text(`${lectura.preguntas_vocabulario_correctas}/${lectura.preguntas_vocabulario_totales} - ${vocabPorcentaje}%`, 40, y);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            y += 4;
+        }
+
         y += 8;
     }
-    
+   
     // DESAFIO
     if (desafio) {
         doc.setFillColor(255, 243, 224);
@@ -562,12 +573,12 @@ async function crearPDF(datos, ciclo) {
         doc.setFont(undefined, 'bold');
         doc.text('DESAFIO MENTAL', 16, y + 5);
         y += 10;
-        
+       
         doc.setFontSize(9);
         doc.setFont(undefined, 'normal');
         doc.text(`Desafio: ${desafio.desafio || 'N/A'}`, 14, y);
         y += 4;
-        
+       
         const desColor = getColor(desafio.porcentaje);
         doc.text(`Porcentaje: `, 14, y);
         doc.setTextColor(desColor === '#27ae60' ? 39 : 231, desColor === '#27ae60' ? 174 : 76, desColor === '#27ae60' ? 96 : 60);
@@ -575,10 +586,10 @@ async function crearPDF(datos, ciclo) {
         doc.text(`${desafio.porcentaje}%`, 38, y);
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'normal');
-        
+       
         y += 8;
     }
-    
+   
     // APLICACIONES
     if (aplicaciones && aplicaciones.length > 0) {
         doc.setFillColor(243, 229, 245);
@@ -587,18 +598,18 @@ async function crearPDF(datos, ciclo) {
         doc.setFont(undefined, 'bold');
         doc.text('APLICACIONES BRAIN TRAINING', 16, y + 5);
         y += 10;
-        
+       
         doc.setFontSize(9);
         aplicaciones.forEach((app, i) => {
             doc.setFont(undefined, 'bold');
             doc.text(`${i + 1}. ${app.habilidad}`, 14, y);
             y += 4;
-            
+           
             doc.setFont(undefined, 'normal');
             doc.text(`Aplicacion: ${app.aplicacion}`, 14, y);
             y += 4;
             doc.text(`Meta: ${app.meta}`, 14, y);
-            
+           
             const appColor = getColor(app.efectividad);
             doc.text(`Porcentaje: `, 80, y);
             doc.setTextColor(appColor === '#27ae60' ? 39 : 231, appColor === '#27ae60' ? 174 : 76, appColor === '#27ae60' ? 96 : 60);
@@ -606,16 +617,16 @@ async function crearPDF(datos, ciclo) {
             doc.text(`${app.efectividad}%`, 105, y);
             doc.setTextColor(0, 0, 0);
             doc.setFont(undefined, 'normal');
-            
+           
             y += 6;
         });
     }
-    
+   
     // FOOTER
     doc.setFontSize(8);
     doc.setTextColor(128, 128, 128);
     doc.text('Designed by Hansel Pena Diaz - 3143090748', pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-    
+   
     doc.save(`Informe_${estudiante.codigo_estudiante}_Ciclo${ciclo}.pdf`);
 }
 
@@ -623,15 +634,15 @@ async function enviarWhatsApp(codigo, ciclo) {
     try {
         const datos = await obtenerDatosEstudiante(codigo, ciclo);
         if (!datos) return;
-        
+       
         const celular = datos.estudiante.celular_acudiente.replace(/[^0-9]/g, '');
         const mensaje = `Hola ${datos.estudiante.nombre_acudiente}, te compartimos el informe del Thinking Skills Program de ${datos.estudiante.nombre}. Ciclo: ${ciclo}. Para descargar el PDF, genera el informe y compártelo manualmente.`;
-        
+       
         const urlWhatsApp = `https://wa.me/57${celular}?text=${encodeURIComponent(mensaje)}`;
         window.open(urlWhatsApp, '_blank');
-        
+       
         mostrarMsg('WhatsApp abierto. IMPORTANTE: Debes generar el PDF y adjuntarlo manualmente en WhatsApp.', 'info');
-        
+       
     } catch (e) {
         mostrarMsg('Error al abrir WhatsApp: ' + e.message, 'error');
     }
@@ -643,13 +654,13 @@ async function enviarEmail(codigo, ciclo) {
 
 async function generarLinkDigital(codigo, ciclo) {
     mostrarMsg('Generando link digital...', 'info');
-    
+   
     try {
         const datos = await obtenerDatosEstudiante(codigo, ciclo);
         if (!datos) return;
-        
+       
         const token = generarToken();
-        
+       
         // Guardar en BD
         const rInforme = await fetch(`${URL}/informes_digitales`, {
             method: 'POST',
@@ -667,22 +678,22 @@ async function generarLinkDigital(codigo, ciclo) {
                 activo: true
             })
         });
-        
+       
         if (!rInforme.ok) throw new Error('Error al guardar informe');
-        
+       
         const baseURL = getBaseURL();
         const linkDigital = `${baseURL}informe_viewer.html?token=${token}`;
-        
+       
         // Copiar al portapapeles
         await navigator.clipboard.writeText(linkDigital);
-        
+       
         mostrarMsg('Link generado y copiado al portapapeles', 'success');
-        
+       
         // Mostrar modal con el link
         mostrarModalLink(linkDigital, datos.estudiante);
-        
+       
         return linkDigital;
-        
+       
     } catch (e) {
         console.error(e);
         mostrarMsg('Error al generar link: ' + e.message, 'error');
@@ -693,7 +704,7 @@ async function generarLinkDigital(codigo, ciclo) {
 function mostrarModalLink(link, estudiante) {
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-    
+   
     modal.innerHTML = `
         <div style="background:white;padding:40px;border-radius:20px;max-width:600px;width:100%">
             <h2 style="color:#667eea;margin-bottom:20px">Link Digital Generado</h2>
@@ -709,7 +720,7 @@ function mostrarModalLink(link, estudiante) {
             </div>
         </div>
     `;
-    
+   
     modal.id = 'modalLink';
     document.body.appendChild(modal);
 }
@@ -727,35 +738,32 @@ async function copiarLink(link) {
 function enviarLinkWhatsApp(celular, link, nombreEstudiante) {
     const cel = celular.replace(/[^0-9]/g, '');
     const mensaje = `Hola! Te compartimos el informe digital de ${nombreEstudiante} del Thinking Skills Program.
-
 Ver informe completo:
 ${link}
-
 En el informe encontrarás:
 ✓ Resultados de lectura crítica
 ✓ Desafío mental
 ✓ Aplicaciones brain training
 ✓ Opción de descarga en PDF
-
 Designed by Hansel Peña Diaz
 Tel: 3143090748`;
-    
+   
     window.open(`https://wa.me/57${cel}?text=${encodeURIComponent(mensaje)}`, '_blank');
     mostrarMsg('WhatsApp abierto', 'success');
 }
 
 async function enviarLinkEmail(codigo, link) {
     mostrarMsg('Enviando email con link...', 'info');
-    
+   
     try {
         const rEst = await fetch(`${URL}/estudiantes?codigo_estudiante=eq.${codigo}`, {
             headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
         });
         const estudiantes = await rEst.json();
         if (!estudiantes || estudiantes.length === 0) throw new Error('Estudiante no encontrado');
-        
+       
         const estudiante = estudiantes[0];
-        
+       
         const templateParams = {
             to_email: estudiante.email_acudiente,
             acudiente_nombre: estudiante.nombre_acudiente + ' ' + estudiante.apellido_acudiente,
@@ -763,17 +771,17 @@ async function enviarLinkEmail(codigo, link) {
             link_informe: link,
             mensaje: `Puede ver el informe digital haciendo click en el siguiente enlace: ${link}`
         };
-        
+       
         const response = await emailjs.send(
             EMAILJS_SERVICE_ID,
             EMAILJS_TEMPLATE_ID,
             templateParams
         );
-        
+       
         if (response.status === 200) {
             mostrarMsg('Email enviado exitosamente', 'success');
         }
-        
+       
     } catch (e) {
         console.error(e);
         mostrarMsg('Error al enviar email: ' + (e.text || e.message), 'error');
@@ -782,15 +790,15 @@ async function enviarLinkEmail(codigo, link) {
 
 async function generarTodosPDF() {
     if (!estudiantesActuales || estudiantesActuales.length === 0) return;
-    
+   
     const ciclo = document.getElementById('filterCiclo').value;
     mostrarMsg(`Generando ${estudiantesActuales.length} PDFs...`, 'info');
-    
+   
     for (const est of estudiantesActuales) {
         await generarPDFIndividual(est.codigo_estudiante, ciclo);
         await new Promise(r => setTimeout(r, 500));
     }
-    
+   
     mostrarMsg('Todos los PDFs han sido generados', 'success');
 }
 
@@ -800,16 +808,16 @@ async function enviarTodosEmail() {
 
 async function generarTodosLinks() {
     if (!estudiantesActuales || estudiantesActuales.length === 0) return;
-    
+   
     const ciclo = document.getElementById('filterCiclo').value;
     const confirmacion = confirm(`¿Generar links para ${estudiantesActuales.length} estudiantes?`);
-    
+   
     if (!confirmacion) return;
-    
+   
     mostrarMsg(`Generando ${estudiantesActuales.length} links...`, 'info');
-    
+   
     const links = [];
-    
+   
     for (const est of estudiantesActuales) {
         const link = await generarLinkDigital(est.codigo_estudiante, ciclo);
         if (link) {
@@ -817,7 +825,7 @@ async function generarTodosLinks() {
         }
         await new Promise(r => setTimeout(r, 300));
     }
-    
+   
     mostrarResumenLinks(links);
     mostrarMsg(`${links.length} links generados`, 'success');
 }
@@ -825,7 +833,7 @@ async function generarTodosLinks() {
 function mostrarResumenLinks(links) {
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;overflow:auto;padding:20px';
-    
+   
     let html = `
         <div style="background:white;padding:40px;border-radius:20px;max-width:900px;margin:40px auto">
             <h2 style="color:#667eea;margin-bottom:20px">Links Generados (${links.length})</h2>
@@ -839,7 +847,7 @@ function mostrarResumenLinks(links) {
                 </thead>
                 <tbody>
     `;
-    
+   
     links.forEach(item => {
         html += `
             <tr style="border-bottom:1px solid #eee">
@@ -851,7 +859,7 @@ function mostrarResumenLinks(links) {
             </tr>
         `;
     });
-    
+   
     html += `
                 </tbody>
             </table>
@@ -860,7 +868,7 @@ function mostrarResumenLinks(links) {
             </div>
         </div>
     `;
-    
+   
     modal.id = 'modalResumen';
     modal.innerHTML = html;
     document.body.appendChild(modal);
@@ -871,6 +879,5 @@ function cerrarModalResumen() {
     if (modal) modal.remove();
 }
 </script>
-
 </body>
 </html>
