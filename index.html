@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thinking Skills - Login</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#ff7e5f 0%,#feb47b 100%);display:flex;justify-content:center;align-items:center;min-height:100vh;color:#fff}
+.login-card{background:rgba(255,255,255,0.95);padding:40px;border-radius:20px;box-shadow:0 15px 40px rgba(255,126,95,0.4);width:100%;max-width:420px;text-align:center}
+.logo{font-size:2.2em;font-weight:700;margin-bottom:10px;color:#e65c00}
+.subtitle{font-size:1.1em;margin-bottom:30px;color:#d35400}
+.form-group{margin-bottom:20px;position:relative}
+label{display:block;color:#d35400;font-weight:600;margin-bottom:8px;text-align:left}
+input{width:100%;padding:14px 14px 14px 45px;border:2px solid #ffcc80;border-radius:12px;font-size:16px;background:#fff;transition:all 0.3s}
+input:focus{outline:none;border-color:#ff7e5f;box-shadow:0 0 0 4px rgba(255,126,95,0.2)}
+.icon{position:absolute;left:14px;top:38px;color:#e65c00;font-size:18px}
+.btn{background:linear-gradient(135deg,#ff7e5f 0%,#feb47b 100%);color:#fff;padding:14px;border:none;border-radius:12px;cursor:pointer;font-size:16px;font-weight:600;width:100%;margin-top:10px;transition:all 0.3s}
+.btn:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(255,126,95,0.4)}
+.btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+.alert{padding:12px;border-radius:12px;margin:15px 0;font-weight:500;display:none}
+.alert-error{background:#fadbd8;color:#c0392b;border:2px solid #f5b7b1}
+.alert-success{background:#d5f4e6;color:#27ae60;border:2px solid #a3e4d7}
+.alert-warning{background:#fff3cd;color:#856404;border:2px solid #ffeaa7}
+.spinner{display:inline-block;width:18px;height:18px;border:3px solid #fff;border-top:3px solid transparent;border-radius:50%;animation:spin 1s linear infinite;margin-left:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="login-card">
+<div class="logo">Thinking Skills</div>
+<p class="subtitle">Ingresa tu código de estudiante</p>
+<div id="alertBox" class="alert"></div>
+<form onsubmit="login(event)">
+<div class="form-group">
+<label>Código Estudiante</label>
+<i class="icon fas fa-user"></i>
+<input type="text" id="codigo" required placeholder="EST0012" autofocus>
+</div>
+<div class="form-group">
+<label>Contraseña</label>
+<i class="icon fas fa-lock"></i>
+<input type="password" id="password" required placeholder="TSP2025">
+</div>
+<button type="submit" class="btn" id="btnLogin">
+Ingresar <span id="spinner" class="spinner" style="display:none"></span>
+</button>
+</form>
+
+<div style="text-align: center; margin-top: 20px; color: white; font-size: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+    Designed by <strong>Hansel Peña Diaz</strong> - 3143090748
+</div>
+</div>
+
+<script>
+const URL = 'https://rxqiimwqlisnurgmtmtw.supabase.co/rest/v1';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4cWlpbXdxbGlzbnVyZ210bXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MjcyNzcsImV4cCI6MjA3NzAwMzI3N30.meJx3YvbvwQJHvfLs52DZ9LppSJIVbBvyAVPqJfi9wg';
+
+function showAlert(msg, type = 'error') {
+    const a = document.getElementById('alertBox');
+    a.className = 'alert alert-' + type;
+    a.textContent = msg;
+    a.style.display = 'block';
+}
+
+function hideAlert() {
+    document.getElementById('alertBox').style.display = 'none';
+}
+
+async function mostrarResultados(lectura, user) {
+    // Obtener desafío mental
+    let desafioData = null;
+    try {
+        const rDesafio = await fetch(`${URL}/steam_desafios?codigo_estudiante=eq.${user.codigo_estudiante}&grado=eq.${user.grado}&ciclo=eq.1`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        const desafios = await rDesafio.json();
+        if (desafios && desafios.length > 0) desafioData = desafios[0];
+    } catch (e) {}
+    
+    // Obtener aplicaciones
+    let appsData = [];
+    try {
+        const rApps = await fetch(`${URL}/aplicaciones?codigo_estudiante=eq.${user.codigo_estudiante}&grado=eq.${user.grado}&ciclo=eq.1`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        appsData = await rApps.json() || [];
+    } catch (e) {}
+    
+    const desafioHTML = desafioData ? `
+        <div style="background: #fff3e0; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #ff9800;">
+            <h3 style="color: #e65100; margin-bottom: 12px; font-size: 1.1em;">🧩 Desafío Mental</h3>
+            <div style="margin: 8px 0; color: #333;"><strong>Calificación:</strong> ${desafioData.porcentaje || 'N/A'}%</div>
+            <div style="margin: 8px 0; color: #333;"><strong>Estado:</strong> ${desafioData.porcentaje >= 80 ? '✅ Excelente' : desafioData.porcentaje >= 60 ? '📈 Bueno' : '🌱 En progreso'}</div>
+        </div>
+    ` : '<div style="background: #f5f5f5; padding: 15px; border-radius: 10px; margin-bottom: 15px; color: #666;">🧩 Desafío Mental: No completado</div>';
+    
+    const appsHTML = appsData.length > 0 ? appsData.map(app => `
+        <div style="background: #f3e5f5; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #9c27b0;">
+            <div style="color: #6a1b9a; font-weight: 600; margin-bottom: 5px;">${app.habilidad || 'Aplicación'}</div>
+            <div style="color: #333;"><strong>Puntaje:</strong> ${app.resultado || 'N/A'} / ${app.meta || 100}</div>
+            <div style="color: #333;"><strong>Porcentaje:</strong> ${app.efectividad || 'N/A'}%</div>
+        </div>
+    `).join('') : '<div style="background: #f5f5f5; padding: 15px; border-radius: 10px; color: #666;">🎮 Aplicaciones: No completadas</div>';
+    
+    const resultadosHTML = `
+        <div style="background: white; padding: 35px; border-radius: 20px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); max-width: 900px; margin: 20px auto;">
+            <h2 style="color: #667eea; text-align: center; margin-bottom: 25px; font-size: 1.8em;">
+                📊 Resultados de tu última sesión<br>
+                <span style="font-size: 0.7em; color: #764ba2;">Thinking Skills Program</span>
+            </h2>
+            
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(102,126,234,0.3);">
+                <div style="margin: 10px 0; font-size: 1.1em;"><strong>👤 Estudiante:</strong> ${user.nombre} ${user.apellidos}</div>
+                <div style="margin: 10px 0;"><strong>📚 Lectura:</strong> ${lectura.titulo_lectura || 'N/A'}</div>
+                <div style="margin: 10px 0;"><strong>🎯 Grado:</strong> ${lectura.grado} - Ciclo ${lectura.ciclo}</div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div style="background: #e3f2fd; padding: 20px; border-radius: 12px; border-left: 4px solid #2196f3;">
+                    <h3 style="color: #1565c0; margin-bottom: 15px; font-size: 1.2em;">📖 Lectura</h3>
+                    <div style="margin: 8px 0; color: #333;"><strong>Palabras:</strong> ${lectura.word_count || 'N/A'}</div>
+                    <div style="margin: 8px 0; color: #333;"><strong>Tiempo:</strong> ${lectura.tiempo_minutos || 'N/A'} min</div>
+                    <div style="margin: 8px 0; color: #333;"><strong>Vel. Simple:</strong> ${lectura.velocidad_simple || 'N/A'} p/m</div>
+                    <div style="margin: 8px 0; color: #333;"><strong>Vocabulario:</strong> ${lectura.preguntas_vocabulario_correctas || 'N/A'}/${lectura.preguntas_vocabulario_totales || 'N/A'} (${Math.round((lectura.preguntas_vocabulario_correctas / lectura.preguntas_vocabulario_totales) * 100) || 'N/A'}%)</strong></div>
+                    <div style="margin: 8px 0; color: #333;"><strong>Comprensión:</strong> ${lectura.preguntas_correctas || 'N/A'}/${lectura.preguntas_totales || 'N/A'} (${lectura.comprension || 'N/A'}%)</strong></div>
+                    <div style="margin: 8px 0; color: #333;"><strong>Vel. Efectiva:</strong> ${lectura.velocidad_efectiva || 'N/A'}</strong></div>
+                </div>
+
+                <div>
+                    ${desafioHTML}
+                    <div style="background: #fce4ec; padding: 15px; border-radius: 10px; border-left: 4px solid #e91e63;">
+                        <h3 style="color: #c2185b; margin-bottom: 12px; font-size: 1.1em;">🎮 Aplicaciones Brain Training</h3>
+                        ${appsHTML}
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: #fff9c4; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; border: 2px solid #fbc02d;">
+                <p style="margin-bottom: 10px; font-weight: 600; color: #333; font-size: 1.1em;">Si deseas repetir la prueba, contacta al administrador:</p>
+                <p style="font-size: 1.3em; color: #667eea; font-weight: bold; margin: 5px 0;">Hansel Peña Diaz</p>
+                <p style="font-size: 1.4em; color: #667eea; font-weight: bold;">3143090748</p>
+            </div>
+
+            <button onclick="location.reload()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 600; width: 100%; box-shadow: 0 4px 15px rgba(102,126,234,0.4); transition: all 0.3s;">
+                Volver al Login
+            </button>
+        </div>
+    `;
+    
+    document.body.innerHTML = `
+        <div style="background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%); min-height: 100vh; padding: 20px; display: flex; align-items: center; justify-content: center;">
+            ${resultadosHTML}
+            <div style="position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; color: white; font-size: 13px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                Designed by <strong>Hansel Peña Diaz</strong> - 3143090748
+            </div>
+        </div>
+    `;
+}
+
+async function login(e) {
+    e.preventDefault();
+    const codigo = document.getElementById('codigo').value.trim().toUpperCase();
+    const pass = document.getElementById('password').value;
+    const btn = document.getElementById('btnLogin');
+    const spinner = document.getElementById('spinner');
+    
+    if (!codigo || !pass) return showAlert('Complete código y contraseña');
+    if (!codigo.startsWith('EST')) return showAlert('Código debe empezar con EST');
+    
+    btn.disabled = true;
+    spinner.style.display = 'inline-block';
+    hideAlert();
+    
+    try {
+        // 1. Verificar estudiante
+        const rEstudiante = await fetch(`${URL}/estudiantes?codigo_estudiante=eq.${codigo}&select=*`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        if (!rEstudiante.ok) throw new Error('Error de servidor');
+        const dataEstudiante = await rEstudiante.json();
+        if (dataEstudiante.length === 0) return showAlert('Estudiante no encontrado');
+        
+        const user = dataEstudiante[0];
+        if (user.password !== pass) return showAlert('Contraseña incorrecta');
+        
+        // 2. PRIORIDAD: Si contraseña es TSP2025, SIEMPRE redirigir a cambiar contraseña
+        if (pass === 'TSP2025') {
+            localStorage.setItem('user', JSON.stringify(user));
+            showAlert('Primera vez detectada. Redirigiendo a crear contraseña...', 'success');
+            setTimeout(() => {
+                location.href = 'cambiar_password.html';
+            }, 1000);
+            return;
+        }
+        
+        // 3. Verificar si ya tiene una sesión activa (Ciclo 1)
+        const CICLO_ACTUAL = 1;
+        const rSesion = await fetch(
+            `${URL}/sesiones_activas?codigo_estudiante=eq.${codigo}&grado=eq.${user.grado}&ciclo=eq.${CICLO_ACTUAL}&sesion_activa=eq.true`, 
+            {
+                headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+            }
+        );
+        const sesionesActivas = await rSesion.json();
+        
+        if (sesionesActivas && sesionesActivas.length > 0) {
+            return showAlert('⚠️ Ya tienes una sesión activa. Cierra la sesión anterior antes de ingresar nuevamente.', 'warning');
+        }
+        
+        // 4. Verificar si ya completó CUALQUIER actividad (en cualquier grado)
+        const rLectura = await fetch(
+            `${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&ciclo=eq.${CICLO_ACTUAL}&habilitado=eq.false`,
+            {
+                headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+            }
+        );
+        const lecturas = await rLectura.json();
+
+        if (lecturas && lecturas.length > 0) {
+            await mostrarResultados(lecturas[0], user);
+            return;
+        }
+        
+        // 5. Crear sesión activa
+        const rCrearSesion = await fetch(`${URL}/sesiones_activas`, {
+            method: 'POST',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify({
+                codigo_estudiante: codigo,
+                grado: user.grado,
+                ciclo: CICLO_ACTUAL,
+                sesion_activa: true
+            })
+        });
+        
+        if (!rCrearSesion.ok) {
+            throw new Error('Error al crear sesión');
+        }
+        
+        // 6. Guardar info del usuario y redirigir a plataforma
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('sessionActive', 'true');
+        showAlert('¡Bienvenido! Redirigiendo...', 'success');
+        
+        setTimeout(() => {
+            location.href = `plataformas/grado_${user.grado}.html?student=${codigo}`;
+        }, 1000);
+        
+    } catch (err) {
+        console.error(err);
+        showAlert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+    }
+}
+
+// Limpiar alerta al escribir
+document.getElementById('codigo').addEventListener('input', hideAlert);
+document.getElementById('password').addEventListener('input', hideAlert);
+</script>
+</body>
+</html>

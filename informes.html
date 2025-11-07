@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Generar Informes - Thinking Skills</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+.container{max-width:1400px;margin:0 auto;background:white;border-radius:20px;padding:40px;box-shadow:0 15px 40px rgba(0,0,0,0.2)}
+h1{color:#667eea;text-align:center;margin-bottom:30px}
+.filters{display:grid;grid-template-columns:repeat(4, 1fr);gap:15px;margin-bottom:20px;background:#f8f9fa;padding:20px;border-radius:12px}
+label{display:block;margin-bottom:5px;font-weight:600;color:#333;font-size:14px}
+select,input{width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:14px}
+select:focus,input:focus{outline:none;border-color:#667eea}
+.btn{background:#667eea;color:white;padding:12px 24px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.3s;margin:5px;display:inline-block}
+.btn:hover{background:#5568d3;transform:translateY(-2px)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.btn-success{background:#27ae60}
+.btn-success:hover{background:#229954}
+.btn-warning{background:#f39c12}
+.btn-warning:hover{background:#d68910}
+.btn-danger{background:#e74c3c}
+.btn-danger:hover{background:#c0392b}
+.btn-whatsapp{background:#25D366}
+.btn-whatsapp:hover{background:#1fb855}
+.students-table{width:100%;border-collapse:collapse;margin:20px 0;background:white;border-radius:12px;overflow:hidden}
+.students-table th{background:#667eea;color:white;padding:12px;text-align:left;font-weight:600}
+.students-table td{padding:12px;border-bottom:1px solid #eee}
+.students-table tr:hover{background:#f8f9fa}
+.actions{display:flex;gap:5px}
+.alert{padding:12px;border-radius:8px;margin:15px 0;font-weight:500}
+.alert-success{background:#d4edda;color:#155724;border:2px solid #c3e6cb}
+.alert-error{background:#f8d7da;color:#721c24;border:2px solid #f5c6cb}
+.alert-info{background:#d1ecf1;color:#0c5460;border:2px solid #bee5eb}
+.preview-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;overflow:auto;padding:20px}
+.preview-content{background:white;max-width:900px;margin:40px auto;padding:40px;border-radius:12px;position:relative}
+.close-preview{position:absolute;top:20px;right:20px;font-size:30px;cursor:pointer;color:#666}
+.footer{text-align:center;margin-top:30px;color:#666;font-size:14px}
+.section-title{background:#f0f0f0;padding:10px;margin:15px 0;font-weight:600;border-left:4px solid #667eea}
+.info-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
+.info-label{font-weight:600;color:#333}
+.info-value{color:#666}
+.status-badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.status-verde{background:#d4edda;color:#155724}
+.status-rojo{background:#f8d7da;color:#721c24}
+.status-azul{background:#d1ecf1;color:#0c5460}
+.loading{text-align:center;padding:20px;color:#667eea;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Generador de Informes PDF - Thinking Skills</h1>
+    
+    <!-- FILTROS -->
+    <div class="filters">
+        <div>
+            <label>Institución:</label>
+            <select id="filterInstitucion" onchange="cargarGrados()">
+                <option value="">Todas las instituciones</option>
+            </select>
+        </div>
+        <div>
+            <label>Grado:</label>
+            <select id="filterGrado">
+                <option value="">Todos los grados</option>
+                <option value="1">Grado 1</option>
+                <option value="2">Grado 2</option>
+                <option value="3">Grado 3</option>
+                <option value="4">Grado 4</option>
+                <option value="5">Grado 5</option>
+                <option value="6">Grado 6</option>
+                <option value="7">Grado 7</option>
+                <option value="8">Grado 8</option>
+                <option value="9">Grado 9</option>
+                <option value="10">Grado 10</option>
+                <option value="11">Grado 11</option>
+            </select>
+        </div>
+        <div>
+            <label>Ciclo:</label>
+            <input type="number" id="filterCiclo" value="1" min="1">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+            <button class="btn" onclick="buscarEstudiantes()">Buscar Estudiantes</button>
+        </div>
+    </div>
+
+    <div id="mensaje"></div>
+
+    <!-- TABLA DE ESTUDIANTES -->
+    <div id="resultados" style="display:none">
+        <h2 style="margin:20px 0">Estudiantes Encontrados: <span id="totalEstudiantes">0</span></h2>
+        <div style="margin-bottom:15px">
+            <button class="btn btn-success" onclick="generarTodosPDF()">Generar PDF de Todos</button>
+            <button class="btn btn-warning" onclick="enviarTodosEmail()">Enviar Todos por Email</button>
+            <button class="btn" style="background:#3498db" onclick="generarTodosLinks()">Generar Links de Todos</button>
+        </div>
+        <table class="students-table" id="tablaEstudiantes">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>Grado</th>
+                    <th>Institución</th>
+                    <th>Acudiente</th>
+                    <th>Teléfono</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL VISTA PREVIA -->
+<div id="previewModal" class="preview-modal">
+    <div class="preview-content">
+        <span class="close-preview" onclick="cerrarPreview()">&times;</span>
+        <div id="previewContent"></div>
+        <div style="text-align:center;margin-top:30px">
+            <button class="btn btn-success" onclick="generarPDFDesdePreview()">Generar PDF</button>
+            <button class="btn btn-whatsapp" onclick="enviarWhatsAppDesdePreview()">Enviar WhatsApp</button>
+            <button class="btn btn-warning" onclick="enviarEmailDesdePreview()">Enviar Email</button>
+            <button class="btn btn-danger" onclick="cerrarPreview()">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    Designed by <strong>Hansel Peña Diaz</strong> - 3143090748
+</div>
+
+<script>
+const URL = 'https://rxqiimwqlisnurgmtmtw.supabase.co/rest/v1';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4cWlpbXdxbGlzbnVyZ210bXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MjcyNzcsImV4cCI6MjA3NzAwMzI3N30.meJx3YvbvwQJHvfLs52DZ9LppSJIVbBvyAVPqJfi9wg';
+
+let estudiantesActuales = [];
+let estudiantePreview = null;
+
+// Generar token único
+function generarToken() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// Obtener URL base del sitio
+function getBaseURL() {
+    const loc = window.location;
+    return `${loc.protocol}//${loc.host}${loc.pathname.replace('informes.html', '')}`;
+}
+
+// Inicializar
+window.addEventListener('DOMContentLoaded', async () => {
+    await cargarInstituciones();
+});
+
+function mostrarMsg(msg, tipo) {
+    const el = document.getElementById('mensaje');
+    el.className = 'alert alert-' + tipo;
+    el.textContent = msg;
+}
+
+function getColor(porcentaje) {
+    return porcentaje >= 70 ? '#27ae60' : '#e74c3c';
+}
+
+function getEstadoMensualidad(estado) {
+    if (estado === 'becado') return { texto: 'BECADO', color: 'verde' };
+    if (estado === 'al dia') return { texto: 'AL DIA', color: 'verde' };
+    return { texto: 'PENDIENTE', color: 'rojo' };
+}
+
+// === NUEVA FUNCIÓN: calcularVocabularioPreview ===
+function calcularVocabularioPreview(lectura) {
+    if (lectura.preguntas_vocabulario_totales && lectura.preguntas_vocabulario_totales > 0) {
+        const porcentaje = Math.round((lectura.preguntas_vocabulario_correctas / lectura.preguntas_vocabulario_totales) * 100);
+        return `${porcentaje}%`;
+    }
+    return 'N/A';
+}
+
+async function cargarInstituciones() {
+    try {
+        const r = await fetch(`${URL}/instituciones?select=*`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        const instituciones = await r.json();
+        
+        const select = document.getElementById('filterInstitucion');
+        instituciones.forEach(inst => {
+            const option = document.createElement('option');
+            option.value = inst.codigo_institucion;
+            option.textContent = inst.nombre;
+            select.appendChild(option);
+        });
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function buscarEstudiantes() {
+    const institucion = document.getElementById('filterInstitucion').value;
+    const grado = document.getElementById('filterGrado').value;
+    const ciclo = document.getElementById('filterCiclo').value;
+    
+    if (!ciclo) {
+        return mostrarMsg('Debe seleccionar un ciclo', 'error');
+    }
+    
+    mostrarMsg('Buscando estudiantes...', 'info');
+    
+    try {
+        let query = `${URL}/estudiantes?select=*`;
+        
+        if (institucion) query += `&codigo_institucion=eq.${institucion}`;
+        if (grado) query += `&grado=eq.${grado}`;
+        
+        const r = await fetch(query, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        const estudiantes = await r.json();
+        
+        if (!estudiantes || estudiantes.length === 0) {
+            mostrarMsg('No se encontraron estudiantes con los filtros seleccionados', 'error');
+            document.getElementById('resultados').style.display = 'none';
+            return;
+        }
+        
+        estudiantesActuales = estudiantes;
+        mostrarTablaEstudiantes(estudiantes, ciclo);
+        mostrarMsg(`${estudiantes.length} estudiante(s) encontrado(s)`, 'success');
+        
+    } catch (e) {
+        console.error(e);
+        mostrarMsg('Error al buscar estudiantes: ' + e.message, 'error');
+    }
+}
+
+async function mostrarTablaEstudiantes(estudiantes, ciclo) {
+    const tbody = document.querySelector('#tablaEstudiantes tbody');
+    tbody.innerHTML = '';
+    
+    document.getElementById('totalEstudiantes').textContent = estudiantes.length;
+    document.getElementById('resultados').style.display = 'block';
+    
+    // Obtener instituciones
+    const rInst = await fetch(`${URL}/instituciones?select=*`, {
+        headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+    });
+    const instituciones = await rInst.json();
+    const instMap = {};
+    instituciones.forEach(i => instMap[i.codigo_institucion] = i.nombre);
+    
+    estudiantes.forEach(est => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${est.codigo_estudiante}</td>
+            <td>${est.nombre} ${est.apellidos}</td>
+            <td>${est.grado}</td>
+            <td>${instMap[est.codigo_institucion] || 'N/A'}</td>
+            <td>${est.nombre_acudiente} ${est.apellido_acudiente}</td>
+            <td>${est.celular_acudiente}</td>
+            <td class="actions">
+                <button class="btn" style="padding:8px 12px;font-size:12px" onclick="verPrevia('${est.codigo_estudiante}', ${ciclo})">Vista Previa</button>
+                <button class="btn btn-success" style="padding:8px 12px;font-size:12px" onclick="generarPDFIndividual('${est.codigo_estudiante}', ${ciclo})">PDF</button>
+                <button class="btn" style="padding:8px 12px;font-size:12px;background:#3498db" onclick="generarLinkDigital('${est.codigo_estudiante}', ${ciclo})">Link</button>
+                <button class="btn btn-whatsapp" style="padding:8px 12px;font-size:12px" onclick="enviarWhatsApp('${est.codigo_estudiante}', ${ciclo})">WhatsApp</button>
+                <button class="btn btn-warning" style="padding:8px 12px;font-size:12px" onclick="enviarEmail('${est.codigo_estudiante}', ${ciclo})">Email</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function verPrevia(codigo, ciclo) {
+    mostrarMsg('Cargando vista previa...', 'info');
+    
+    try {
+        const datos = await obtenerDatosEstudiante(codigo, ciclo);
+        if (!datos) return;
+        
+        estudiantePreview = { codigo, ciclo, datos };
+        
+        const html = generarHTMLPreview(datos);
+        document.getElementById('previewContent').innerHTML = html;
+        document.getElementById('previewModal').style.display = 'block';
+        
+    } catch (e) {
+        mostrarMsg('Error al cargar vista previa: ' + e.message, 'error');
+    }
+}
+
+function generarHTMLPreview(datos) {
+    const { estudiante, mensualidad, lectura, desafio, aplicaciones } = datos;
+    const estadoMens = getEstadoMensualidad(mensualidad.estado);
+    
+    let html = `
+        <h2 style="color:#667eea;text-align:center;margin-bottom:30px">INFORME THINKING SKILLS PROGRAM</h2>
+        
+        <div class="section-title">DATOS DEL ESTUDIANTE</div>
+        <div class="info-row">
+            <div><span class="info-label">Nombre:</span> ${estudiante.nombre} ${estudiante.apellidos}</div>
+            <div><span class="info-label">Código:</span> ${estudiante.codigo_estudiante}</div>
+        </div>
+        <div class="info-row">
+            <div><span class="info-label">Grado:</span> ${estudiante.grado}</div>
+            <div><span class="info-label">Edad:</span> ${estudiante.edad || 'N/A'} años</div>
+        </div>
+        <div class="info-row">
+            <div><span class="info-label">Estado Mensualidad:</span> <span class="status-badge status-${estadoMens.color}">${estadoMens.texto}</span></div>
+            <div><span class="info-label">Fecha:</span> ${new Date().toLocaleDateString('es-CO')}</div>
+        </div>
+    `;
+    
+    if (lectura) {
+        const velColor = lectura.velocidad_simple >= 100 ? 'verde' : 'rojo';
+        const compColor = lectura.comprension >= 70 ? 'verde' : 'rojo';
+        const velEfColor = lectura.velocidad_efectiva >= 70 ? 'verde' : 'rojo';
+        
+        html += `
+            <div class="section-title">LECTURA CRITICA</div>
+            <div class="info-row">
+                <div><span class="info-label">Título:</span> ${lectura.titulo_lectura || 'N/A'}</div>
+                <div><span class="info-label">Autor:</span> ${lectura.autor || 'N/A'}</div>
+            </div>
+            <div class="info-row">
+                <div><span class="info-label">Palabras:</span> ${lectura.word_count || 'N/A'}</div>
+                <div><span class="info-label">Tiempo:</span> ${lectura.tiempo_minutos || 'N/A'} min</div>
+            </div>
+            <div class="info-row" style="margin-top:15px">
+                <div><span class="info-label">Velocidad Simple:</span> <span class="status-badge status-${velColor}">${lectura.velocidad_simple} p/m</span></div>
+                <div><span class="info-label">Comprensión:</span> <span class="status-badge status-${compColor}">${lectura.comprension}%</span></div>
+            </div>
+            <div class="info-row">
+                <div><span class="info-label">Vocabulario:</span> <span class="status-badge status-azul">${calcularVocabularioPreview(lectura)}</span></div>
+            </div>
+            <div class="info-row">
+                <div><span class="info-label">Velocidad Efectiva:</span> <span class="status-badge status-${velEfColor}">${lectura.velocidad_efectiva}</span></div>
+            </div>
+        `;
+    }
+    
+    if (desafio) {
+        const desColor = desafio.porcentaje >= 70 ? 'verde' : 'rojo';
+        html += `
+            <div class="section-title">DESAFIO MENTAL</div>
+            <div class="info-row">
+                <div><span class="info-label">Desafío:</span> ${desafio.desafio || 'N/A'}</div>
+                <div><span class="info-label">Porcentaje:</span> <span class="status-badge status-${desColor}">${desafio.porcentaje}%</span></div>
+            </div>
+        `;
+    }
+    
+    if (aplicaciones && aplicaciones.length > 0) {
+        html += `<div class="section-title">APLICACIONES BRAIN TRAINING</div>`;
+        aplicaciones.forEach((app, i) => {
+            const appColor = app.efectividad >= 70 ? 'verde' : 'rojo';
+            html += `
+                <div style="margin:10px 0;padding:10px;background:#f8f9fa;border-radius:8px">
+                    <div><strong>${i + 1}. ${app.habilidad}</strong></div>
+                    <div class="info-row" style="margin-top:5px">
+                        <div><span class="info-label">Aplicación:</span> ${app.aplicacion}</div>
+                        <div><span class="info-label">Meta:</span> ${app.meta}</div>
+                    </div>
+                    <div><span class="info-label">Porcentaje:</span> <span class="status-badge status-${appColor}">${app.efectividad}%</span></div>
+                </div>
+            `;
+        });
+    }
+    
+    return html;
+}
+
+async function obtenerDatosEstudiante(codigo, ciclo) {
+    try {
+        // Estudiante
+        const rEst = await fetch(`${URL}/estudiantes?codigo_estudiante=eq.${codigo}`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        const estudiantes = await rEst.json();
+        if (!estudiantes || estudiantes.length === 0) {
+            mostrarMsg('Estudiante no encontrado', 'error');
+            return null;
+        }
+        const estudiante = estudiantes[0];
+        
+        // Mensualidad
+        const mesActual = new Date().toISOString().slice(0, 7);
+        const rMens = await fetch(`${URL}/mensualidades?codigo_estudiante=eq.${codigo}&mes=eq.${mesActual}`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        const mensualidades = await rMens.json();
+        const mensualidad = mensualidades && mensualidades.length > 0 ? mensualidades[0] : { estado: 'pendiente' };
+        
+        // Lectura
+        const rLec = await fetch(`${URL}/steam_lectura?codigo_estudiante=eq.${codigo}&ciclo=eq.${ciclo}`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        const lecturas = await rLec.json();
+        const lectura = lecturas && lecturas.length > 0 ? lecturas[0] : null;
+        
+        // Desafío
+        const rDes = await fetch(`${URL}/steam_desafios?codigo_estudiante=eq.${codigo}&ciclo=eq.${ciclo}`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        const desafios = await rDes.json();
+        const desafio = desafios && desafios.length > 0 ? desafios[0] : null;
+        
+        // Aplicaciones
+        const rApp = await fetch(`${URL}/aplicaciones?codigo_estudiante=eq.${codigo}&ciclo=eq.${ciclo}`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        const aplicaciones = await rApp.json() || [];
+        
+        return { estudiante, mensualidad, lectura, desafio, aplicaciones };
+        
+    } catch (e) {
+        console.error(e);
+        mostrarMsg('Error al obtener datos: ' + e.message, 'error');
+        return null;
+    }
+}
+
+function cerrarPreview() {
+    document.getElementById('previewModal').style.display = 'none';
+    estudiantePreview = null;
+}
+
+async function generarPDFDesdePreview() {
+    if (!estudiantePreview) return;
+    await generarPDFIndividual(estudiantePreview.codigo, estudiantePreview.ciclo);
+}
+
+async function enviarWhatsAppDesdePreview() {
+    if (!estudiantePreview) return;
+    await enviarWhatsApp(estudiantePreview.codigo, estudiantePreview.ciclo);
+}
+
+async function enviarEmailDesdePreview() {
+    if (!estudiantePreview) return;
+    await enviarEmail(estudiantePreview.codigo, estudiantePreview.ciclo);
+}
+
+async function generarPDFIndividual(codigo, ciclo) {
+    mostrarMsg('Generando PDF...', 'info');
+    
+    try {
+        const datos = await obtenerDatosEstudiante(codigo, ciclo);
+        if (!datos) return;
+        
+        await crearPDF(datos, ciclo);
+        mostrarMsg('PDF generado exitosamente', 'success');
+        
+    } catch (e) {
+        mostrarMsg('Error al generar PDF: ' + e.message, 'error');
+    }
+}
+
+async function crearPDF(datos, ciclo) {
+    const { estudiante, mensualidad, lectura, desafio, aplicaciones } = datos;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    let y = 20;
+    
+    // ENCABEZADO
+    doc.setFillColor(102, 126, 234);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('INFORME THINKING SKILLS PROGRAM', pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-CO')} | Ciclo: ${ciclo}`, pageWidth / 2, 25, { align: 'center' });
+    
+    y = 50;
+    doc.setTextColor(0, 0, 0);
+    
+    // ESTUDIANTE
+    doc.setFontSize(13);
+    doc.setFont(undefined, 'bold');
+    doc.text('DATOS DEL ESTUDIANTE', 14, y);
+    y += 8;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Nombre: ${estudiante.nombre} ${estudiante.apellidos}`, 14, y);
+    y += 5;
+    doc.text(`Codigo: ${estudiante.codigo_estudiante}`, 14, y);
+    doc.text(`Grado: ${estudiante.grado}`, 110, y);
+    y += 5;
+    doc.text(`Edad: ${estudiante.edad || 'N/A'} anos`, 14, y);
+    
+    const estadoMens = getEstadoMensualidad(mensualidad.estado);
+    doc.text(`Estado Mensualidad: `, 110, y);
+    doc.setTextColor(estadoMens.color === 'verde' ? 39 : 231, estadoMens.color === 'verde' ? 174 : 76, estadoMens.color === 'verde' ? 96 : 60);
+    doc.setFont(undefined, 'bold');
+    doc.text(estadoMens.texto, 155, y);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'normal');
+    
+    y += 10;
+    
+    // LECTURA
+    if (lectura) {
+        doc.setFillColor(227, 242, 253);
+        doc.rect(14, y, pageWidth - 28, 7, 'F');
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('LECTURA CRITICA', 16, y + 5);
+        y += 10;
+        
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Titulo: ${lectura.titulo_lectura || 'N/A'}`, 14, y);
+        y += 4;
+        doc.text(`Autor: ${lectura.autor || 'N/A'}`, 14, y);
+        y += 4;
+        doc.text(`Palabras: ${lectura.word_count || 'N/A'}`, 14, y);
+        doc.text(`Tiempo: ${lectura.tiempo_minutos || 'N/A'} min`, 80, y);
+        y += 6;
+        
+        const velColor = lectura.velocidad_simple >= 100 ? '#27ae60' : '#e74c3c';
+        doc.text(`Velocidad Simple: `, 14, y);
+        doc.setTextColor(velColor === '#27ae60' ? 39 : 231, velColor === '#27ae60' ? 174 : 76, velColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${lectura.velocidad_simple} p/m`, 52, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        y += 4;
+        
+        const compColor = getColor(lectura.comprension);
+        doc.text(`Comprension: `, 14, y);
+        doc.setTextColor(compColor === '#27ae60' ? 39 : 231, compColor === '#27ae60' ? 174 : 76, compColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${lectura.comprension}%`, 42, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        y += 4;
+        
+        const velEfColor = getColor(lectura.velocidad_efectiva >= 70 ? 70 : 50);
+        doc.text(`Velocidad Efectiva: `, 14, y);
+        doc.setTextColor(velEfColor === '#27ae60' ? 39 : 231, velEfColor === '#27ae60' ? 174 : 76, velEfColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${lectura.velocidad_efectiva}`, 50, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        
+        y += 8;
+    }
+    
+    // DESAFIO
+    if (desafio) {
+        doc.setFillColor(255, 243, 224);
+        doc.rect(14, y, pageWidth - 28, 7, 'F');
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('DESAFIO MENTAL', 16, y + 5);
+        y += 10;
+        
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Desafio: ${desafio.desafio || 'N/A'}`, 14, y);
+        y += 4;
+        
+        const desColor = getColor(desafio.porcentaje);
+        doc.text(`Porcentaje: `, 14, y);
+        doc.setTextColor(desColor === '#27ae60' ? 39 : 231, desColor === '#27ae60' ? 174 : 76, desColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${desafio.porcentaje}%`, 38, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        
+        y += 8;
+    }
+    
+    // APLICACIONES
+    if (aplicaciones && aplicaciones.length > 0) {
+        doc.setFillColor(243, 229, 245);
+        doc.rect(14, y, pageWidth - 28, 7, 'F');
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('APLICACIONES BRAIN TRAINING', 16, y + 5);
+        y += 10;
+        
+        doc.setFontSize(9);
+        aplicaciones.forEach((app, i) => {
+            doc.setFont(undefined, 'bold');
+            doc.text(`${i + 1}. ${app.habilidad}`, 14, y);
+            y += 4;
+            
+            doc.setFont(undefined, 'normal');
+            doc.text(`Aplicacion: ${app.aplicacion}`, 14, y);
+            y += 4;
+            doc.text(`Meta: ${app.meta}`, 14, y);
+            
+            const appColor = getColor(app.efectividad);
+            doc.text(`Porcentaje: `, 80, y);
+            doc.setTextColor(appColor === '#27ae60' ? 39 : 231, appColor === '#27ae60' ? 174 : 76, appColor === '#27ae60' ? 96 : 60);
+            doc.setFont(undefined, 'bold');
+            doc.text(`${app.efectividad}%`, 105, y);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            
+            y += 6;
+        });
+    }
+    
+    // FOOTER
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text('Designed by Hansel Pena Diaz - 3143090748', pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+    
+    doc.save(`Informe_${estudiante.codigo_estudiante}_Ciclo${ciclo}.pdf`);
+}
+
+async function enviarWhatsApp(codigo, ciclo) {
+    try {
+        const datos = await obtenerDatosEstudiante(codigo, ciclo);
+        if (!datos) return;
+        
+        const celular = datos.estudiante.celular_acudiente.replace(/[^0-9]/g, '');
+        const mensaje = `Hola ${datos.estudiante.nombre_acudiente}, te compartimos el informe del Thinking Skills Program de ${datos.estudiante.nombre}. Ciclo: ${ciclo}. Para descargar el PDF, genera el informe y compártelo manualmente.`;
+        
+        const urlWhatsApp = `https://wa.me/57${celular}?text=${encodeURIComponent(mensaje)}`;
+        window.open(urlWhatsApp, '_blank');
+        
+        mostrarMsg('WhatsApp abierto. IMPORTANTE: Debes generar el PDF y adjuntarlo manualmente en WhatsApp.', 'info');
+        
+    } catch (e) {
+        mostrarMsg('Error al abrir WhatsApp: ' + e.message, 'error');
+    }
+}
+
+async function enviarEmail(codigo, ciclo) {
+    alert('Funcionalidad de envío por email requiere configurar EmailJS. Por ahora, genera el PDF y envíalo manualmente al email: ' + codigo);
+}
+
+async function generarLinkDigital(codigo, ciclo) {
+    mostrarMsg('Generando link digital...', 'info');
+    
+    try {
+        const datos = await obtenerDatosEstudiante(codigo, ciclo);
+        if (!datos) return;
+        
+        const token = generarToken();
+        
+        // Guardar en BD
+        const rInforme = await fetch(`${URL}/informes_digitales`, {
+            method: 'POST',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            },
+            body: JSON.stringify({
+                codigo_estudiante: codigo,
+                ciclo: ciclo,
+                token: token,
+                datos_json: datos,
+                activo: true
+            })
+        });
+        
+        if (!rInforme.ok) throw new Error('Error al guardar informe');
+        
+        const baseURL = getBaseURL();
+        const linkDigital = `${baseURL}informe_viewer.html?token=${token}`;
+        
+        // Copiar al portapapeles
+        await navigator.clipboard.writeText(linkDigital);
+        
+        mostrarMsg('Link generado y copiado al portapapeles', 'success');
+        
+        // Mostrar modal con el link
+        mostrarModalLink(linkDigital, datos.estudiante);
+        
+        return linkDigital;
+        
+    } catch (e) {
+        console.error(e);
+        mostrarMsg('Error al generar link: ' + e.message, 'error');
+        return null;
+    }
+}
+
+function mostrarModalLink(link, estudiante) {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    
+    modal.innerHTML = `
+        <div style="background:white;padding:40px;border-radius:20px;max-width:600px;width:100%">
+            <h2 style="color:#667eea;margin-bottom:20px">Link Digital Generado</h2>
+            <p style="margin-bottom:15px"><strong>Estudiante:</strong> ${estudiante.nombre} ${estudiante.apellidos}</p>
+            <p style="margin-bottom:15px"><strong>Link generado:</strong></p>
+            <input type="text" value="${link}" readonly style="width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;margin-bottom:20px;font-size:14px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button onclick="copiarLink('${link}')" class="btn btn-success">Copiar Link</button>
+                <button onclick="enviarLinkWhatsApp('${estudiante.celular_acudiente}', '${link}', '${estudiante.nombre}')" class="btn btn-whatsapp">WhatsApp</button>
+                <button onclick="enviarLinkEmail('${estudiante.codigo_estudiante}', '${link}')" class="btn btn-warning">Email</button>
+                <button onclick="window.open('${link}', '_blank')" class="btn">Ver</button>
+                <button onclick="cerrarModalLink()" class="btn btn-danger">Cerrar</button>
+            </div>
+        </div>
+    `;
+    
+    modal.id = 'modalLink';
+    document.body.appendChild(modal);
+}
+
+function cerrarModalLink() {
+    const modal = document.getElementById('modalLink');
+    if (modal) modal.remove();
+}
+
+async function copiarLink(link) {
+    await navigator.clipboard.writeText(link);
+    mostrarMsg('Link copiado al portapapeles', 'success');
+}
+
+function enviarLinkWhatsApp(celular, link, nombreEstudiante) {
+    const cel = celular.replace(/[^0-9]/g, '');
+    const mensaje = `Informe Thinking Skills - ${nombreEstudiante}
+
+${link}
+
+Hansel Peña Diaz - 3143090748`;
+    window.open(`https://wa.me/57${cel}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    mostrarMsg('WhatsApp abierto', 'success');
+}
+
+async function enviarLinkEmail(codigo, link) {
+    mostrarMsg('Enviando email con link...', 'info');
+    
+    try {
+        const rEst = await fetch(`${URL}/estudiantes?codigo_estudiante=eq.${codigo}`, {
+            headers: { 'apikey': KEY,  'Authorization': 'Bearer ' + KEY }
+        });
+        const estudiantes = await rEst.json();
+        if (!estudiantes || estudiantes.length === 0) throw new Error('Estudiante no encontrado');
+        
+        const estudiante = estudiantes[0];
+        
+        const templateParams = {
+            to_email: estudiante.email_acudiente,
+            acudiente_nombre: estudiante.nombre_acudiente + ' ' + estudiante.apellido_acudiente,
+            estudiante_nombre: estudiante.nombre + ' ' + estudiante.apellidos,
+            link_informe: link,
+            mensaje: `Puede ver el informe digital haciendo click en el siguiente enlace: ${link}`
+        };
+        
+        const response = await emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAILJS_TEMPLATE_ID,
+            templateParams
+        );
+        
+        if (response.status === 200) {
+            mostrarMsg('Email enviado exitosamente', 'success');
+        }
+        
+    } catch (e) {
+        console.error(e);
+        mostrarMsg('Error al enviar email: ' + (e.text || e.message), 'error');
+    }
+}
+
+async function generarTodosPDF() {
+    if (!estudiantesActuales || estudiantesActuales.length === 0) return;
+    
+    const ciclo = document.getElementById('filterCiclo').value;
+    mostrarMsg(`Generando ${estudiantesActuales.length} PDFs...`, 'info');
+    
+    for (const est of estudiantesActuales) {
+        await generarPDFIndividual(est.codigo_estudiante, ciclo);
+        await new Promise(r => setTimeout(r, 500));
+    }
+    
+    mostrarMsg('Todos los PDFs han sido generados', 'success');
+}
+
+async function enviarTodosEmail() {
+    alert('Funcionalidad de envío masivo por email requiere configurar EmailJS o servicio SMTP.');
+}
+
+async function generarTodosLinks() {
+    if (!estudiantesActuales || estudiantesActuales.length === 0) return;
+    
+    const ciclo = document.getElementById('filterCiclo').value;
+    const confirmacion = confirm(`¿Generar links para ${estudiantesActuales.length} estudiantes?`);
+    
+    if (!confirmacion) return;
+    
+    mostrarMsg(`Generando ${estudiantesActuales.length} links...`, 'info');
+    
+    const links = [];
+    
+    for (const est of estudiantesActuales) {
+        const link = await generarLinkDigital(est.codigo_estudiante, ciclo);
+        if (link) {
+            links.push({ estudiante: est, link: link });
+        }
+        await new Promise(r => setTimeout(r, 300));
+    }
+    
+    // Mostrar todos los links generados
+    mostrarResumenLinks(links);
+    mostrarMsg(`${links.length} links generados`, 'success');
+}
+
+function mostrarResumenLinks(links) {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;overflow:auto;padding:20px';
+    
+    let html = `
+        <div style="background:white;padding:40px;border-radius:20px;max-width:900px;margin:40px auto">
+            <h2 style="color:#667eea;margin-bottom:20px">Links Generados (${links.length})</h2>
+            <table style="width:100%;border-collapse:collapse">
+                <thead>
+                    <tr style="background:#667eea;color:white">
+                        <th style="padding:10px;text-align:left">Estudiante</th>
+                        <th style="padding:10px;text-align:left">Código</th>
+                        <th style="padding:10px;text-align:left">Link</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    links.forEach(item => {
+        html += `
+            <tr style="border-bottom:1px solid #eee">
+                <td style="padding:10px">${item.estudiante.nombre} ${item.estudiante.apellidos}</td>
+                <td style="padding:10px">${item.estudiante.codigo_estudiante}</td>
+                <td style="padding:10px">
+                    <input type="text" value="${item.link}" readonly style="width:100%;padding:5px;font-size:12px">
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+            <div style="text-align:center;margin-top:30px">
+                <button onclick="cerrarModalResumen()" class="btn btn-danger">Cerrar</button>
+            </div>
+        </div>
+    `;
+    
+    modal.id = 'modalResumen';
+    modal.innerHTML = html;
+    document.body.appendChild(modal);
+}
+
+function cerrarModalResumen() {
+    const modal = document.getElementById('modalResumen');
+    if (modal) modal.remove();
+}
+</script>
+
+</body>
+</html>

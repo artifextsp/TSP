@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Informe Digital - Thinking Skills</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+.container{max-width:900px;margin:0 auto;background:white;border-radius:20px;padding:40px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:30px;border-radius:15px;margin-bottom:30px;text-align:center}
+.header h1{font-size:2em;margin-bottom:10px}
+.header p{font-size:1.1em;opacity:0.9}
+.section{margin:30px 0;padding:25px;background:#f8f9fa;border-radius:12px;border-left:4px solid #667eea}
+.section-title{font-size:1.4em;color:#667eea;font-weight:700;margin-bottom:15px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:15px 0}
+.info-item{padding:12px;background:white;border-radius:8px}
+.info-label{font-weight:600;color:#666;font-size:0.9em;margin-bottom:5px}
+.info-value{font-size:1.1em;color:#333}
+.badge{display:inline-block;padding:6px 16px;border-radius:20px;font-weight:600;font-size:0.9em}
+.badge-verde{background:#d4edda;color:#155724}
+.badge-rojo{background:#f8d7da;color:#721c24}
+.badge-azul{background:#d1ecf1;color:#0c5460}
+.apps-grid{display:grid;gap:15px;margin-top:15px}
+.app-card{background:white;padding:20px;border-radius:12px;border:2px solid #e0e0e0}
+.app-title{font-weight:700;color:#667eea;margin-bottom:10px;font-size:1.1em}
+.actions{display:flex;gap:15px;justify-content:center;margin:40px 0;flex-wrap:wrap}
+.btn{background:#667eea;color:white;padding:14px 28px;border:none;border-radius:10px;cursor:pointer;font-size:16px;font-weight:600;transition:all 0.3s;text-decoration:none;display:inline-block}
+.btn:hover{background:#5568d3;transform:translateY(-2px);box-shadow:0 8px 20px rgba(102,126,234,0.3)}
+.btn-success{background:#27ae60}
+.btn-success:hover{background:#229954}
+.btn-whatsapp{background:#25D366}
+.btn-whatsapp:hover{background:#1fb855}
+.footer{text-align:center;margin-top:40px;padding-top:20px;border-top:2px solid #eee;color:#666;font-size:14px}
+.loading{text-align:center;padding:60px;font-size:1.2em;color:#667eea}
+.error{background:#f8d7da;color:#721c24;padding:20px;border-radius:12px;text-align:center;margin:20px 0}
+.metric{text-align:center;padding:15px;background:white;border-radius:10px}
+.metric-value{font-size:2em;font-weight:700;color:#667eea}
+.metric-label{font-size:0.9em;color:#666;margin-top:5px}
+@media (max-width: 768px){
+    .container{padding:20px}
+    .info-grid{grid-template-columns:1fr}
+    .actions{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div id="loading" class="loading">
+        Cargando informe... 
+    </div>
+    
+    <div id="error" style="display:none"></div>
+    
+    <div id="contenido" style="display:none">
+        <!-- Contenido se genera dinámicamente -->
+    </div>
+</div>
+
+<script>
+const URL = 'https://rxqiimwqlisnurgmtmtw.supabase.co/rest/v1';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4cWlpbXdxbGlzbnVyZ210bXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MjcyNzcsImV4cCI6MjA3NzAwMzI3N30.meJx3YvbvwQJHvfLs52DZ9LppSJIVbBvyAVPqJfi9wg';
+
+let datosInforme = null;
+let cicloInforme = null;
+
+async function cargarInforme() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    
+    if (!token) {
+        mostrarError('Token no válido. El link puede estar incorrecto.');
+        return;
+    }
+    
+    try {
+        // Obtener informe
+        const r = await fetch(`${URL}/informes_digitales?token=eq.${token}&activo=eq.true`, {
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
+        });
+        
+        if (!r.ok) throw new Error('Error al cargar informe');
+        
+        const informes = await r.json();
+        
+        if (!informes || informes.length === 0) {
+            mostrarError('Informe no encontrado o ha expirado.');
+            return;
+        }
+        
+        const informe = informes[0];
+        
+        // Verificar expiración
+        if (new Date(informe.expira) < new Date()) {
+            mostrarError('Este informe ha expirado.');
+            return;
+        }
+        
+        // Incrementar contador de vistas
+        await fetch(`${URL}/informes_digitales?id=eq.${informe.id}`, {
+            method: 'PATCH',
+            headers: {
+                'apikey': KEY,
+                'Authorization': 'Bearer ' + KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                vistas: (informe.vistas || 0) + 1,
+                ultima_vista: new Date().toISOString()
+            })
+        });
+        
+        datosInforme = informe.datos_json;
+        cicloInforme = informe.ciclo;
+        
+        mostrarInforme(informe);
+        
+    } catch (e) {
+        console.error(e);
+        mostrarError('Error al cargar el informe: ' + e.message);
+    }
+}
+
+function mostrarError(mensaje) {
+    document.getElementById('loading').style.display = 'none';
+    const errorDiv = document.getElementById('error');
+    errorDiv.className = 'error';
+    errorDiv.textContent = 'Error ' + mensaje;
+    errorDiv.style.display = 'block';
+}
+
+function getEstadoMensualidad(estado) {
+    if (estado === 'becado') return { texto: 'BECADO', color: 'verde' };
+    if (estado === 'al dia') return { texto: 'AL DIA', color: 'verde' };
+    return { texto: 'PENDIENTE', color: 'rojo' };
+}
+
+function calcularVocabulario(lectura) {
+    if (lectura.preguntas_vocabulario_totales && lectura.preguntas_vocabulario_totales > 0) {
+        const porcentaje = Math.round((lectura.preguntas_vocabulario_correctas / lectura.preguntas_vocabulario_totales) * 100);
+        return `${porcentaje}%`;
+    }
+    return 'N/A';
+}
+
+function mostrarInforme(informe) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('contenido').style.display = 'block';
+    
+    const { estudiante, mensualidad, lectura, desafio, aplicaciones } = informe.datos_json;
+    const ciclo = informe.ciclo;
+    
+    const estadoMens = getEstadoMensualidad(mensualidad.estado);
+    
+    let html = `
+        <div class="header">
+            <h1>INFORME THINKING SKILLS PROGRAM</h1>
+            <p>Ciclo ${ciclo} | ${new Date(informe.fecha_generacion).toLocaleDateString('es-CO')}</p>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">DATOS DEL ESTUDIANTE</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Nombre Completo</div>
+                    <div class="info-value">${estudiante.nombre} ${estudiante.apellidos}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Código</div>
+                    <div class="info-value">${estudiante.codigo_estudiante}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Grado</div>
+                    <div class="info-value">Grado ${estudiante.grado}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Edad</div>
+                    <div class="info-value">${estudiante.edad || 'N/A'} años</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Estado Mensualidad</div>
+                    <div><span class="badge badge-${estadoMens.color}">${estadoMens.texto}</span></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Acudiente</div>
+                    <div class="info-value">${estudiante.nombre_acudiente} ${estudiante.apellido_acudiente}</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    if (lectura) {
+        const velColor = lectura.velocidad_simple >= 100 ? 'verde' : 'rojo';
+        const compColor = lectura.comprension >= 70 ? 'verde' : 'rojo';
+        const velEfColor = lectura.velocidad_efectiva >= 70 ? 'verde' : 'rojo';
+        
+        html += `
+            <div class="section">
+                <div class="section-title">LECTURA CRITICA</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Título</div>
+                        <div class="info-value">${lectura.titulo_lectura || 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Autor</div>
+                        <div class="info-value">${lectura.autor || 'N/A'}</div>
+                    </div>
+                </div>
+                
+                <div class="info-grid" style="margin-top:20px">
+                    <div class="metric">
+                        <div class="metric-value">${lectura.word_count || 'N/A'}</div>
+                        <div class="metric-label">Palabras Leídas</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${lectura.tiempo_minutos || 'N/A'}</div>
+                        <div class="metric-label">Minutos</div>
+                    </div>
+                </div>
+                
+                <div class="info-grid" style="margin-top:15px">
+                    <div class="info-item">
+                        <div class="info-label">Velocidad Simple</div>
+                        <div><span class="badge badge-${velColor}">${lectura.velocidad_simple} palabras/min</span></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Comprensión</div>
+                        <div><span class="badge badge-${compColor}">${lectura.comprension}%</span></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Velocidad Efectiva</div>
+                        <div><span class="badge badge-${velEfColor}">${lectura.velocidad_efectiva}</span></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Vocabulario</div>
+                        <div><span class="badge badge-azul">${calcularVocabulario(lectura)}</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (desafio) {
+        const desColor = desafio.porcentaje >= 70 ? 'verde' : 'rojo';
+        html += `
+            <div class="section">
+                <div class="section-title">DESAFIO MENTAL</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Desafío</div>
+                        <div class="info-value">${desafio.desafio || 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Resultado</div>
+                        <div><span class="badge badge-${desColor}">${desafio.porcentaje}%</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (aplicaciones && aplicaciones.length > 0) {
+        html += `
+            <div class="section">
+                <div class="section-title">APLICACIONES BRAIN TRAINING</div>
+                <div class="apps-grid">
+        `;
+        
+        aplicaciones.forEach((app, i) => {
+            const appColor = app.efectividad >= 70 ? 'verde' : 'rojo';
+            html += `
+                <div class="app-card">
+                    <div class="app-title">${i + 1}. ${app.habilidad}</div>
+                    <div class="info-grid">
+                        <div>
+                            <div class="info-label">Aplicación</div>
+                            <div class="info-value">${app.aplicacion}</div>
+                        </div>
+                        <div>
+                            <div class="info-label">Meta</div>
+                            <div class="info-value">${app.meta}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px">
+                        <div class="info-label">Rendimiento</div>
+                        <div><span class="badge badge-${appColor}">${app.efectividad}%</span></div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    html += `
+        <div class="actions">
+            <button class="btn btn-success" onclick="descargarPDF()">Descargar PDF</button>
+            <button class="btn btn-whatsapp" onclick="compartirWhatsApp()">Compartir WhatsApp</button>
+            <button class="btn" onclick="window.print()">Imprimir</button>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Vistas:</strong> ${informe.vistas + 1}</p>
+            <p style="margin-top:10px">Designed by <strong>Hansel Peña Diaz</strong> - 3143090748</p>
+            <p style="margin-top:5px;font-size:12px">Este informe expira el ${new Date(informe.expira).toLocaleDateString('es-CO')}</p>
+        </div>
+    `;
+    
+    document.getElementById('contenido').innerHTML = html;
+}
+
+async function descargarPDF() {
+    if (!datosInforme) return;
+    
+    const { estudiante, mensualidad, lectura, desafio, aplicaciones } = datosInforme;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    let y = 20;
+    
+    // ENCABEZADO
+    doc.setFillColor(102, 126, 234);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('INFORME THINKING SKILLS PROGRAM', pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-CO')} | Ciclo: ${cicloInforme}`, pageWidth / 2, 25, { align: 'center' });
+    
+    y = 50;
+    doc.setTextColor(0, 0, 0);
+    
+    // ESTUDIANTE
+    doc.setFontSize(13);
+    doc.setFont(undefined, 'bold');
+    doc.text('DATOS DEL ESTUDIANTE', 14, y);
+    y += 8;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Nombre: ${estudiante.nombre} ${estudiante.apellidos}`, 14, y);
+    y += 5;
+    doc.text(`Codigo: ${estudiante.codigo_estudiante}`, 14, y);
+    doc.text(`Grado: ${estudiante.grado}`, 110, y);
+    y += 5;
+    doc.text(`Edad: ${estudiante.edad || 'N/A'} anos`, 14, y);
+    
+    const estadoMens = getEstadoMensualidad(mensualidad.estado);
+    doc.text(`Estado Mensualidad: `, 110, y);
+    doc.setTextColor(estadoMens.color === 'verde' ? 39 : 231, estadoMens.color === 'verde' ? 174 : 76, estadoMens.color === 'verde' ? 96 : 60);
+    doc.setFont(undefined, 'bold');
+    doc.text(estadoMens.texto, 155, y);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(undefined, 'normal');
+    
+    y += 10;
+    
+    // LECTURA
+    if (lectura) {
+        doc.setFillColor(227, 242, 253);
+        doc.rect(14, y, pageWidth - 28, 7, 'F');
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('LECTURA CRITICA', 16, y + 5);
+        y += 10;
+        
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Titulo: ${lectura.titulo_lectura || 'N/A'}`, 14, y);
+        y += 4;
+        doc.text(`Autor: ${lectura.autor || 'N/A'}`, 14, y);
+        y += 4;
+        doc.text(`Palabras: ${lectura.word_count || 'N/A'}`, 14, y);
+        doc.text(`Tiempo: ${lectura.tiempo_minutos || 'N/A'} min`, 80, y);
+        y += 6;
+        
+        const velColor = lectura.velocidad_simple >= 100 ? '#27ae60' : '#e74c3c';
+        doc.text(`Velocidad Simple: `, 14, y);
+        doc.setTextColor(velColor === '#27ae60' ? 39 : 231, velColor === '#27ae60' ? 174 : 76, velColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${lectura.velocidad_simple} p/m`, 52, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        y += 4;
+        
+        const compColor = lectura.comprension >= 70 ? '#27ae60' : '#e74c3c';
+        doc.text(`Comprension: `, 14, y);
+        doc.setTextColor(compColor === '#27ae60' ? 39 : 231, compColor === '#27ae60' ? 174 : 76, compColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${lectura.comprension}%`, 42, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        y += 4;
+        
+        const velEfColor = lectura.velocidad_efectiva >= 70 ? '#27ae60' : '#e74c3c';
+        doc.text(`Velocidad Efectiva: `, 14, y);
+        doc.setTextColor(velEfColor === '#27ae60' ? 39 : 231, velEfColor === '#27ae60' ? 174 : 76, velEfColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${lectura.velocidad_efectiva}`, 50, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        
+        y += 8;
+    }
+    
+    // DESAFIO
+    if (desafio) {
+        doc.setFillColor(255, 243, 224);
+        doc.rect(14, y, pageWidth - 28, 7, 'F');
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('DESAFIO MENTAL', 16, y + 5);
+        y += 10;
+        
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Desafio: ${desafio.desafio || 'N/A'}`, 14, y);
+        y += 4;
+        
+        const desColor = desafio.porcentaje >= 70 ? '#27ae60' : '#e74c3c';
+        doc.text(`Porcentaje: `, 14, y);
+        doc.setTextColor(desColor === '#27ae60' ? 39 : 231, desColor === '#27ae60' ? 174 : 76, desColor === '#27ae60' ? 96 : 60);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${desafio.porcentaje}%`, 38, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        
+        y += 8;
+    }
+    
+    // APLICACIONES
+    if (aplicaciones && aplicaciones.length > 0) {
+        doc.setFillColor(243, 229, 245);
+        doc.rect(14, y, pageWidth - 28, 7, 'F');
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('APLICACIONES BRAIN TRAINING', 16, y + 5);
+        y += 10;
+        
+        doc.setFontSize(9);
+        aplicaciones.forEach((app, i) => {
+            doc.setFont(undefined, 'bold');
+            doc.text(`${i + 1}. ${app.habilidad}`, 14, y);
+            y += 4;
+            
+            doc.setFont(undefined, 'normal');
+            doc.text(`Aplicacion: ${app.aplicacion}`, 14, y);
+            y += 4;
+            doc.text(`Meta: ${app.meta}`, 14, y);
+            
+            const appColor = app.efectividad >= 70 ? '#27ae60' : '#e74c3c';
+            doc.text(`Porcentaje: `, 80, y);
+            doc.setTextColor(appColor === '#27ae60' ? 39 : 231, appColor === '#27ae60' ? 174 : 76, appColor === '#27ae60' ? 96 : 60);
+            doc.setFont(undefined, 'bold');
+            doc.text(`${app.efectividad}%`, 105, y);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            
+            y += 6;
+        });
+    }
+    
+    // FOOTER
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text('Designed by Hansel Pena Diaz - 3143090748', pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+    
+    doc.save(`Informe_${estudiante.codigo_estudiante}_Ciclo${cicloInforme}.pdf`);
+}
+
+function compartirWhatsApp() {
+    const link = window.location.href;
+    const mensaje = `Te comparto el informe digital del Thinking Skills Program. Ver aquí: ${link}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
+// Cargar informe al inicio
+window.addEventListener('DOMContentLoaded', cargarInforme);
+</script>
+
+</body>
+</html>
