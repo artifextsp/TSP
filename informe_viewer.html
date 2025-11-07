@@ -46,59 +46,53 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 </style>
 </head>
 <body>
-
 <div class="container">
     <div id="loading" class="loading">
-        Cargando informe... 
+        Cargando informe...
     </div>
-    
+   
     <div id="error" style="display:none"></div>
-    
+   
     <div id="contenido" style="display:none">
         <!-- Contenido se genera dinámicamente -->
     </div>
 </div>
-
 <script>
 const URL = 'https://rxqiimwqlisnurgmtmtw.supabase.co/rest/v1';
 const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4cWlpbXdxbGlzbnVyZ210bXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MjcyNzcsImV4cCI6MjA3NzAwMzI3N30.meJx3YvbvwQJHvfLs52DZ9LppSJIVbBvyAVPqJfi9wg';
-
 let datosInforme = null;
 let cicloInforme = null;
 
 async function cargarInforme() {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
-    
+   
     if (!token) {
         mostrarError('Token no válido. El link puede estar incorrecto.');
         return;
     }
-    
+   
     try {
-        // Obtener informe
         const r = await fetch(`${URL}/informes_digitales?token=eq.${token}&activo=eq.true`, {
             headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
         });
-        
+       
         if (!r.ok) throw new Error('Error al cargar informe');
-        
+       
         const informes = await r.json();
-        
+       
         if (!informes || informes.length === 0) {
             mostrarError('Informe no encontrado o ha expirado.');
             return;
         }
-        
+       
         const informe = informes[0];
-        
-        // Verificar expiración
+       
         if (new Date(informe.expira) < new Date()) {
             mostrarError('Este informe ha expirado.');
             return;
         }
-        
-        // Incrementar contador de vistas
+       
         await fetch(`${URL}/informes_digitales?id=eq.${informe.id}`, {
             method: 'PATCH',
             headers: {
@@ -111,12 +105,12 @@ async function cargarInforme() {
                 ultima_vista: new Date().toISOString()
             })
         });
-        
+       
         datosInforme = informe.datos_json;
         cicloInforme = informe.ciclo;
-        
+       
         mostrarInforme(informe);
-        
+       
     } catch (e) {
         console.error(e);
         mostrarError('Error al cargar el informe: ' + e.message);
@@ -148,18 +142,18 @@ function calcularVocabulario(lectura) {
 function mostrarInforme(informe) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('contenido').style.display = 'block';
-    
+   
     const { estudiante, mensualidad, lectura, desafio, aplicaciones } = informe.datos_json;
     const ciclo = informe.ciclo;
-    
+   
     const estadoMens = getEstadoMensualidad(mensualidad.estado);
-    
+   
     let html = `
         <div class="header">
             <h1>INFORME THINKING SKILLS PROGRAM</h1>
             <p>Ciclo ${ciclo} | ${new Date(informe.fecha_generacion).toLocaleDateString('es-CO')}</p>
         </div>
-        
+       
         <div class="section">
             <div class="section-title">DATOS DEL ESTUDIANTE</div>
             <div class="info-grid">
@@ -190,12 +184,12 @@ function mostrarInforme(informe) {
             </div>
         </div>
     `;
-    
+   
     if (lectura) {
         const velColor = lectura.velocidad_simple >= 100 ? 'verde' : 'rojo';
         const compColor = lectura.comprension >= 70 ? 'verde' : 'rojo';
         const velEfColor = lectura.velocidad_efectiva >= 70 ? 'verde' : 'rojo';
-        
+       
         html += `
             <div class="section">
                 <div class="section-title">LECTURA CRITICA</div>
@@ -209,7 +203,7 @@ function mostrarInforme(informe) {
                         <div class="info-value">${lectura.autor || 'N/A'}</div>
                     </div>
                 </div>
-                
+               
                 <div class="info-grid" style="margin-top:20px">
                     <div class="metric">
                         <div class="metric-value">${lectura.word_count || 'N/A'}</div>
@@ -220,29 +214,31 @@ function mostrarInforme(informe) {
                         <div class="metric-label">Minutos</div>
                     </div>
                 </div>
-                
+               
                 <div class="info-grid" style="margin-top:15px">
                     <div class="info-item">
                         <div class="info-label">Velocidad Simple</div>
                         <div><span class="badge badge-${velColor}">${lectura.velocidad_simple} palabras/min</span></div>
                     </div>
+                    <!-- CAMBIO 5: COMPRENSIÓN CON ACIERTOS -->
                     <div class="info-item">
                         <div class="info-label">Comprensión</div>
-                        <div><span class="badge badge-${compColor}">${lectura.comprension}%</span></div>
+                        <div><span class="badge badge-${compColor}">${lectura.preguntas_correctas || 0}/${lectura.preguntas_totales || 0} - ${lectura.comprension}%</span></div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Velocidad Efectiva</div>
                         <div><span class="badge badge-${velEfColor}">${lectura.velocidad_efectiva}</span></div>
                     </div>
+                    <!-- CAMBIO 6: VOCABULARIO CON ACIERTOS -->
                     <div class="info-item">
                         <div class="info-label">Vocabulario</div>
-                        <div><span class="badge badge-azul">${calcularVocabulario(lectura)}</span></div>
+                        <div><span class="badge badge-azul">${lectura.preguntas_vocabulario_correctas || 0}/${lectura.preguntas_vocabulario_totales || 0} - ${calcularVocabulario(lectura)}</span></div>
                     </div>
                 </div>
             </div>
         `;
     }
-    
+   
     if (desafio) {
         const desColor = desafio.porcentaje >= 70 ? 'verde' : 'rojo';
         html += `
@@ -261,14 +257,14 @@ function mostrarInforme(informe) {
             </div>
         `;
     }
-    
+   
     if (aplicaciones && aplicaciones.length > 0) {
         html += `
             <div class="section">
                 <div class="section-title">APLICACIONES BRAIN TRAINING</div>
                 <div class="apps-grid">
         `;
-        
+       
         aplicaciones.forEach((app, i) => {
             const appColor = app.efectividad >= 70 ? 'verde' : 'rojo';
             html += `
@@ -291,39 +287,39 @@ function mostrarInforme(informe) {
                 </div>
             `;
         });
-        
+       
         html += `
                 </div>
             </div>
         `;
     }
-    
+   
     html += `
         <div class="actions">
             <button class="btn btn-success" onclick="descargarPDF()">Descargar PDF</button>
             <button class="btn btn-whatsapp" onclick="compartirWhatsApp()">Compartir WhatsApp</button>
             <button class="btn" onclick="window.print()">Imprimir</button>
         </div>
-        
+       
         <div class="footer">
             <p><strong>Vistas:</strong> ${informe.vistas + 1}</p>
             <p style="margin-top:10px">Designed by <strong>Hansel Peña Diaz</strong> - 3143090748</p>
             <p style="margin-top:5px;font-size:12px">Este informe expira el ${new Date(informe.expira).toLocaleDateString('es-CO')}</p>
         </div>
     `;
-    
+   
     document.getElementById('contenido').innerHTML = html;
 }
 
 async function descargarPDF() {
     if (!datosInforme) return;
-    
+   
     const { estudiante, mensualidad, lectura, desafio, aplicaciones } = datosInforme;
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     let y = 20;
-    
+   
     // ENCABEZADO
     doc.setFillColor(102, 126, 234);
     doc.rect(0, 0, pageWidth, 40, 'F');
@@ -334,10 +330,10 @@ async function descargarPDF() {
     doc.setFontSize(11);
     doc.setFont(undefined, 'normal');
     doc.text(`Fecha: ${new Date().toLocaleDateString('es-CO')} | Ciclo: ${cicloInforme}`, pageWidth / 2, 25, { align: 'center' });
-    
+   
     y = 50;
     doc.setTextColor(0, 0, 0);
-    
+   
     // ESTUDIANTE
     doc.setFontSize(13);
     doc.setFont(undefined, 'bold');
@@ -351,7 +347,7 @@ async function descargarPDF() {
     doc.text(`Grado: ${estudiante.grado}`, 110, y);
     y += 5;
     doc.text(`Edad: ${estudiante.edad || 'N/A'} anos`, 14, y);
-    
+   
     const estadoMens = getEstadoMensualidad(mensualidad.estado);
     doc.text(`Estado Mensualidad: `, 110, y);
     doc.setTextColor(estadoMens.color === 'verde' ? 39 : 231, estadoMens.color === 'verde' ? 174 : 76, estadoMens.color === 'verde' ? 96 : 60);
@@ -359,9 +355,9 @@ async function descargarPDF() {
     doc.text(estadoMens.texto, 155, y);
     doc.setTextColor(0, 0, 0);
     doc.setFont(undefined, 'normal');
-    
+   
     y += 10;
-    
+   
     // LECTURA
     if (lectura) {
         doc.setFillColor(227, 242, 253);
@@ -370,7 +366,7 @@ async function descargarPDF() {
         doc.setFont(undefined, 'bold');
         doc.text('LECTURA CRITICA', 16, y + 5);
         y += 10;
-        
+       
         doc.setFontSize(9);
         doc.setFont(undefined, 'normal');
         doc.text(`Titulo: ${lectura.titulo_lectura || 'N/A'}`, 14, y);
@@ -380,7 +376,7 @@ async function descargarPDF() {
         doc.text(`Palabras: ${lectura.word_count || 'N/A'}`, 14, y);
         doc.text(`Tiempo: ${lectura.tiempo_minutos || 'N/A'} min`, 80, y);
         y += 6;
-        
+       
         const velColor = lectura.velocidad_simple >= 100 ? '#27ae60' : '#e74c3c';
         doc.text(`Velocidad Simple: `, 14, y);
         doc.setTextColor(velColor === '#27ae60' ? 39 : 231, velColor === '#27ae60' ? 174 : 76, velColor === '#27ae60' ? 96 : 60);
@@ -389,16 +385,18 @@ async function descargarPDF() {
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'normal');
         y += 4;
-        
+       
+        // CAMBIO 7: COMPRENSIÓN CON ACIERTOS
         const compColor = lectura.comprension >= 70 ? '#27ae60' : '#e74c3c';
         doc.text(`Comprension: `, 14, y);
         doc.setTextColor(compColor === '#27ae60' ? 39 : 231, compColor === '#27ae60' ? 174 : 76, compColor === '#27ae60' ? 96 : 60);
         doc.setFont(undefined, 'bold');
-        doc.text(`${lectura.comprension}%`, 42, y);
+        doc.text(`${lectura.preguntas_correctas || 0}/${lectura.preguntas_totales || 0} - ${lectura.comprension}%`, 42, y);
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'normal');
         y += 4;
-        
+       
+        // CAMBIO 8: VELOCIDAD EFECTIVA + VOCABULARIO EN PDF
         const velEfColor = lectura.velocidad_efectiva >= 70 ? '#27ae60' : '#e74c3c';
         doc.text(`Velocidad Efectiva: `, 14, y);
         doc.setTextColor(velEfColor === '#27ae60' ? 39 : 231, velEfColor === '#27ae60' ? 174 : 76, velEfColor === '#27ae60' ? 96 : 60);
@@ -406,10 +404,24 @@ async function descargarPDF() {
         doc.text(`${lectura.velocidad_efectiva}`, 50, y);
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'normal');
-        
+        y += 4;
+
+        // VOCABULARIO
+        if (lectura.preguntas_vocabulario_totales && lectura.preguntas_vocabulario_totales > 0) {
+            const vocabPorcentaje = Math.round((lectura.preguntas_vocabulario_correctas / lectura.preguntas_vocabulario_totales) * 100);
+            const vocabColor = vocabPorcentaje >= 70 ? '#27ae60' : '#e74c3c';
+            doc.text(`Vocabulario: `, 14, y);
+            doc.setTextColor(vocabColor === '#27ae60' ? 39 : 231, vocabColor === '#27ae60' ? 174 : 76, vocabColor === '#27ae60' ? 96 : 60);
+            doc.setFont(undefined, 'bold');
+            doc.text(`${lectura.preguntas_vocabulario_correctas}/${lectura.preguntas_vocabulario_totales} - ${vocabPorcentaje}%`, 40, y);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            y += 4;
+        }
+
         y += 8;
     }
-    
+   
     // DESAFIO
     if (desafio) {
         doc.setFillColor(255, 243, 224);
@@ -418,12 +430,12 @@ async function descargarPDF() {
         doc.setFont(undefined, 'bold');
         doc.text('DESAFIO MENTAL', 16, y + 5);
         y += 10;
-        
+       
         doc.setFontSize(9);
         doc.setFont(undefined, 'normal');
         doc.text(`Desafio: ${desafio.desafio || 'N/A'}`, 14, y);
         y += 4;
-        
+       
         const desColor = desafio.porcentaje >= 70 ? '#27ae60' : '#e74c3c';
         doc.text(`Porcentaje: `, 14, y);
         doc.setTextColor(desColor === '#27ae60' ? 39 : 231, desColor === '#27ae60' ? 174 : 76, desColor === '#27ae60' ? 96 : 60);
@@ -431,10 +443,10 @@ async function descargarPDF() {
         doc.text(`${desafio.porcentaje}%`, 38, y);
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'normal');
-        
+       
         y += 8;
     }
-    
+   
     // APLICACIONES
     if (aplicaciones && aplicaciones.length > 0) {
         doc.setFillColor(243, 229, 245);
@@ -443,18 +455,18 @@ async function descargarPDF() {
         doc.setFont(undefined, 'bold');
         doc.text('APLICACIONES BRAIN TRAINING', 16, y + 5);
         y += 10;
-        
+       
         doc.setFontSize(9);
         aplicaciones.forEach((app, i) => {
             doc.setFont(undefined, 'bold');
             doc.text(`${i + 1}. ${app.habilidad}`, 14, y);
             y += 4;
-            
+           
             doc.setFont(undefined, 'normal');
             doc.text(`Aplicacion: ${app.aplicacion}`, 14, y);
             y += 4;
             doc.text(`Meta: ${app.meta}`, 14, y);
-            
+           
             const appColor = app.efectividad >= 70 ? '#27ae60' : '#e74c3c';
             doc.text(`Porcentaje: `, 80, y);
             doc.setTextColor(appColor === '#27ae60' ? 39 : 231, appColor === '#27ae60' ? 174 : 76, appColor === '#27ae60' ? 96 : 60);
@@ -462,16 +474,16 @@ async function descargarPDF() {
             doc.text(`${app.efectividad}%`, 105, y);
             doc.setTextColor(0, 0, 0);
             doc.setFont(undefined, 'normal');
-            
+           
             y += 6;
         });
     }
-    
+   
     // FOOTER
     doc.setFontSize(8);
     doc.setTextColor(128, 128, 128);
     doc.text('Designed by Hansel Pena Diaz - 3143090748', pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-    
+   
     doc.save(`Informe_${estudiante.codigo_estudiante}_Ciclo${cicloInforme}.pdf`);
 }
 
@@ -484,6 +496,5 @@ function compartirWhatsApp() {
 // Cargar informe al inicio
 window.addEventListener('DOMContentLoaded', cargarInforme);
 </script>
-
 </body>
 </html>
