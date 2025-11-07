@@ -118,7 +118,7 @@ select:focus,input:focus{outline:none;border-color:#667eea}
 <!-- MODAL VISTA PREVIA -->
 <div id="previewModal" class="preview-modal">
     <div class="preview-content">
-        <span class="close-preview" onclick="cerrarPreview()">&times;</span>
+        <span class="close-preview" onclick="cerrarPreview()">×</span>
         <div id="previewContent"></div>
         <div style="text-align:center;margin-top:30px">
             <button class="btn btn-success" onclick="generarPDFDesdePreview()">Generar PDF</button>
@@ -149,10 +149,9 @@ function generarToken() {
     });
 }
 
-// Obtener URL base del sitio
+// URL de producción en GitHub Pages
 function getBaseURL() {
-    const loc = window.location;
-    return `${loc.protocol}//${loc.host}${loc.pathname.replace('informes.html', '')}`;
+    return 'https://artifextsp.github.io/TSP/';
 }
 
 // Inicializar
@@ -727,11 +726,20 @@ async function copiarLink(link) {
 
 function enviarLinkWhatsApp(celular, link, nombreEstudiante) {
     const cel = celular.replace(/[^0-9]/g, '');
-    const mensaje = `Informe Thinking Skills - ${nombreEstudiante}
+    const mensaje = `Hola! Te compartimos el informe digital de ${nombreEstudiante} del Thinking Skills Program.
 
+Ver informe completo:
 ${link}
 
-Hansel Peña Diaz - 3143090748`;
+En el informe encontrarás:
+✓ Resultados de lectura crítica
+✓ Desafío mental
+✓ Aplicaciones brain training
+✓ Opción de descarga en PDF
+
+Designed by Hansel Peña Diaz
+Tel: 3143090748`;
+    
     window.open(`https://wa.me/57${cel}?text=${encodeURIComponent(mensaje)}`, '_blank');
     mostrarMsg('WhatsApp abierto', 'success');
 }
@@ -741,7 +749,7 @@ async function enviarLinkEmail(codigo, link) {
     
     try {
         const rEst = await fetch(`${URL}/estudiantes?codigo_estudiante=eq.${codigo}`, {
-            headers: { 'apikey': KEY,  'Authorization': 'Bearer ' + KEY }
+            headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY }
         });
         const estudiantes = await rEst.json();
         if (!estudiantes || estudiantes.length === 0) throw new Error('Estudiante no encontrado');
@@ -810,7 +818,6 @@ async function generarTodosLinks() {
         await new Promise(r => setTimeout(r, 300));
     }
     
-    // Mostrar todos los links generados
     mostrarResumenLinks(links);
     mostrarMsg(`${links.length} links generados`, 'success');
 }
